@@ -41,7 +41,7 @@ export const recipeSchema = z.object({
   totalWeightG: z.number().finite().positive().max(100_000).optional(),
 });
 
-export const foodSourceSchema = z.enum(['manual', 'perek', 'recipe']);
+export const foodSourceSchema = z.enum(['manual', 'perek', 'off', 'recipe']);
 export type FoodSource = z.infer<typeof foodSourceSchema>;
 
 export const foodSchema = z

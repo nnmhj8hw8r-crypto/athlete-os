@@ -9,7 +9,7 @@ import type { Food } from '../../domain/schemas.ts';
 import { Field } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { BarcodeScanner, cameraSupport } from './BarcodeScanner.tsx';
-import { perekProvider, type FoodCatalogProvider, type ProviderStatus } from './catalogProvider.ts';
+import { barcodeCatalog, perekProvider, PROVIDER_ATTRIBUTION, type FoodCatalogProvider, type ProviderStatus } from './catalogProvider.ts';
 import type { FoodPrefill } from './FoodFormDialog.tsx';
 
 function useProviderStatus(provider: FoodCatalogProvider): ProviderStatus | null {
@@ -24,11 +24,13 @@ function useProviderStatus(provider: FoodCatalogProvider): ProviderStatus | null
 
 const r1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString('ru-RU');
 
-function Attribution({ food, provider }: { food: CatalogFood; provider: FoodCatalogProvider }) {
-  if (!food.url) return <span className="small muted">{provider.attribution}</span>;
+/** Атрибуция берётся по фактическому источнику продукта: цепочка баз может вернуть любой из них. */
+function Attribution({ food }: { food: CatalogFood }) {
+  const text = PROVIDER_ATTRIBUTION[food.provider];
+  if (!food.url) return <span className="small muted">{text}</span>;
   return (
     <a className="small" href={food.url} target="_blank" rel="noopener noreferrer">
-      {provider.attribution}
+      {text}
     </a>
   );
 }
@@ -36,7 +38,6 @@ function Attribution({ food, provider }: { food: CatalogFood; provider: FoodCata
 function RemoteFoodConfirm({
   food,
   exact,
-  provider,
   onConfirm,
   onBack,
   onManual,
@@ -44,7 +45,6 @@ function RemoteFoodConfirm({
 }: {
   food: CatalogFood;
   exact: boolean;
-  provider: FoodCatalogProvider;
   onConfirm: () => void;
   onBack?: () => void;
   onManual: () => void;
@@ -83,7 +83,7 @@ function RemoteFoodConfirm({
       {food.servings && food.servings.length > 0 && (
         <p className="small muted">Порции у источника: {food.servings.map((s) => `${s.label} — ${r1(s.grams)} г`).join('; ')}</p>
       )}
-      <Attribution food={food} provider={provider} />
+      <Attribution food={food} />
       <div className="row">
         <button type="button" className="btn primary" onClick={onConfirm} disabled={busy}>
           Это мой продукт — сохранить
@@ -184,7 +184,6 @@ export function ExternalSearch({ onSelected, onManual, provider = perekProvider,
         <RemoteFoodConfirm
           food={picked}
           exact={response.exact}
-          provider={provider}
           busy={saving}
           onConfirm={() => confirm(picked)}
           onBack={() => setPicked(null)}
@@ -228,8 +227,8 @@ export function ExternalSearch({ onSelected, onManual, provider = perekProvider,
   );
 }
 
-/** Поиск по штрихкоду: сначала свой каталог (работает офлайн), затем внешняя база. */
-export function BarcodeLookup({ onSelected, onManual, provider = perekProvider }: LookupProps) {
+/** Поиск по штрихкоду: сначала свой каталог (работает офлайн), затем внешние базы по цепочке. */
+export function BarcodeLookup({ onSelected, onManual, provider = barcodeCatalog }: LookupProps) {
   const { notify } = useFeedback();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | undefined>();
@@ -339,7 +338,6 @@ export function BarcodeLookup({ onSelected, onManual, provider = perekProvider }
         <RemoteFoodConfirm
           food={found}
           exact={response.exact}
-          provider={provider}
           busy={saving}
           onConfirm={() => confirm(found)}
           onManual={() => onManual({ barcode: result!.ean, name: found.name })}

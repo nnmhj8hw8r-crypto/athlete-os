@@ -4,7 +4,14 @@ import { defineConfig } from 'vitest/config';
 
 const API_PORT = Number(process.env.PORT ?? 8787);
 
+/**
+ * Путь, по которому приложение открывается на сайте. Локально и на своём сервере — «/»,
+ * на GitHub Pages — «/<имя репозитория>/» (передаётся сборкой в .github/workflows/pages.yml).
+ */
+const BASE = process.env.BASE_PATH ?? '/';
+
 export default defineConfig({
+  base: BASE,
   plugins: [
     react(),
     VitePWA({
@@ -15,8 +22,8 @@ export default defineConfig({
         short_name: 'Athlete OS',
         description: 'Личный дневник подготовки: питание, тренировки, восстановление, сезон',
         lang: 'ru',
-        start_url: '/',
-        scope: '/',
+        start_url: BASE,
+        scope: BASE,
         display: 'standalone',
         background_color: '#f4f5f7',
         theme_color: '#1f4fd1',

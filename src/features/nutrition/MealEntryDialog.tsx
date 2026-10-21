@@ -10,6 +10,7 @@ import { MEAL_TYPES, type Food, type MealEntry, type MealType } from '../../doma
 import { getZonedParts } from '../../domain/time.ts';
 import { Field, FormError, Modal, Tabs } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
+import { PROVIDER_ATTRIBUTION } from './catalogProvider.ts';
 import { FoodFormDialog, type FoodPrefill } from './FoodFormDialog.tsx';
 import { BarcodeLookup, ExternalSearch } from './FoodLookup.tsx';
 import { MacroGrid } from './MacroGrid.tsx';
@@ -153,13 +154,13 @@ export function MealEntryDialog({ entry, date, onClose }: Props) {
                   <p className="muted">Загрузка…</p>
                 ) : list.length === 0 ? (
                   <div className="empty">
-                    <p>{foods.length === 0 ? 'Каталог пока пуст. Добавьте первый продукт вручную или найдите его в Perek.us.' : 'Ничего не найдено.'}</p>
+                    <p>{foods.length === 0 ? 'Каталог пока пуст. Добавьте первый продукт вручную или найдите его по штрихкоду.' : 'Ничего не найдено.'}</p>
                     <div className="row">
                       <button type="button" className="btn primary" onClick={() => setNewFood({ name: query })}>
                         Создать продукт
                       </button>
-                      <button type="button" className="btn" onClick={() => setTab('search')}>
-                        Искать в Perek.us
+                      <button type="button" className="btn" onClick={() => setTab('barcode')}>
+                        Найти по штрихкоду
                       </button>
                     </div>
                   </div>
@@ -173,7 +174,7 @@ export function MealEntryDialog({ entry, date, onClose }: Props) {
                             <span className="meta">
                               {f.brand ? `${f.brand} · ` : ''}
                               {Math.round(f.per100.kcal)} ккал / 100 {unitLabel(f.basis)}
-                              {f.source === 'recipe' ? ' · рецепт' : f.source === 'perek' ? ' · Perek.us' : ''}
+                              {f.source === 'recipe' ? ' · рецепт' : f.source === 'perek' ? ' · Perek.us' : f.source === 'off' ? ' · Open Food Facts' : ''}
                             </span>
                           </span>
                         </button>
@@ -200,9 +201,9 @@ export function MealEntryDialog({ entry, date, onClose }: Props) {
                 На 100 {unitLabel(food.basis)}: {Math.round(food.per100.kcal)} ккал, Б {r1(food.per100.protein)}, Ж {r1(food.per100.fat)}, У{' '}
                 {r1(food.per100.carbs)}
               </p>
-              {food.sourceUrl && (food.source === 'perek' || food.sourceUrl.includes('perek.us')) && (
+              {food.sourceUrl && (food.source === 'perek' || food.source === 'off') && (
                 <a className="small" href={food.sourceUrl} target="_blank" rel="noopener noreferrer">
-                  Данные: perek.us
+                  {PROVIDER_ATTRIBUTION[food.source]}
                 </a>
               )}
               {entry && <p className="small muted">Пищевая ценность взята из записи и не меняется при правке продукта в каталоге.</p>}

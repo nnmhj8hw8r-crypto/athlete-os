@@ -108,14 +108,36 @@ JSON `{ format: "personal-athlete-os-backup", schemaVersion, exportedAt, appVers
   (включая «не найдено»).
 - Ссылка на источник принимается только на домен perek.us.
 
-Интерфейс `FoodCatalogProvider` (`src/features/nutrition/catalogProvider.ts`) позволяет добавить второй
-источник (Open Food Facts): серверный адаптер, приводящий ответ к `CatalogResponse`, и ещё одна
-реализация провайдера.
+### Open Food Facts (с v0.2)
+
+- `src/features/nutrition/openFoodFacts.ts`, запрос **из браузера без сервера**:
+  `GET https://world.openfoodfacts.org/api/v2/product/{ean}.json?fields=…`. Ключ не нужен, API отдаёт
+  `Access-Control-Allow-Origin: *` (проверено 22.10.2026).
+- Поиск по названию из браузера невозможен: `cgi/search.pl` и `search.openfoodfacts.org` не разрешают
+  запросы со сторонних сайтов (CORS) — проверено в браузере 22.10.2026. Поэтому OFF — только штрихкод.
+- Нормализация: русское название приоритетно; ккал из `energy-kcal_100g`, иначе кДж / 4,184; основа
+  «мл» по `product_quantity_unit` или по «мл/л» в `quantity`, иначе «г». Нет любого из ккал/Б/Ж/У или
+  Б+Ж+У > 100 г на 100 г → `not_found` с названием товара, а не продукт с нулями.
+- Атрибуция «Данные: Open Food Facts (ODbL)» со ссылкой на карточку товара.
+
+### Цепочка по штрихкоду
+
+`barcodeCatalog = chainBarcodeProviders(perekProvider, offProvider)` (`catalogProvider.ts`): свой каталог →
+Perek.us (если сервер с ключом доступен) → Open Food Facts. Без сервера (GitHub Pages) Perek пропускается.
+Поиск по названию — только Perek.us. Атрибуция в интерфейсе берётся по `food.provider`.
+
+## Публикация (GitHub Pages)
+
+- `vite.config.ts`: `base` = `BASE_PATH` (по умолчанию `/`); `start_url` и `scope` манифеста — тот же путь.
+  В `index.html` пути иконок через `%BASE_URL%`.
+- `.github/workflows/pages.yml`: typecheck + lint + test → `BASE_PATH=/<repo>/ npm run build` → Pages.
+- Hash-маршрутизация не требует настройки 404 на Pages.
 
 ## PWA и офлайн
 
 - Service Worker кэширует оболочку (JS, CSS, HTML, иконки, манифест). Ответы `/api` не кэшируются.
-- Регистрируется только в защищённом контексте: `localhost` или HTTPS. По `http://<IP>` с телефона не работает.
+- Регистрируется только в защищённом контексте: `localhost` или HTTPS. По `http://<IP>` с телефона не работает;
+  на GitHub Pages (HTTPS) работает.
 - Обновление: новая сборка подхватывается автоматически при следующем открытии (autoUpdate).
 - Сервер раздаёт файлы сборки с диска при каждом запросе, отсутствующий файл → 404 (а не index.html).
 

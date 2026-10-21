@@ -1,13 +1,15 @@
 // Внешние продуктовые базы. Дневник питания работает с любым провайдером через этот интерфейс,
-// поэтому второй источник (например, Open Food Facts) добавляется без переписывания страниц:
-// нужен серверный адаптер, приводящий ответ к CatalogResponse, и ещё одна реализация ниже.
+// поэтому новый источник добавляется без переписывания страниц.
+// Perek.us идёт через наш сервер (ключ), Open Food Facts — напрямую из браузера.
 // Локальный каталог (IndexedDB) провайдером не является — он доступен всегда, в том числе офлайн.
 import {
   catalogHealthSchema,
   catalogResponseSchema,
   type CatalogErrorResponse,
+  type CatalogProviderId,
   type CatalogResponse,
 } from '../../../shared/catalog.ts';
+import { offLookupBarcode } from './openFoodFacts.ts';
 
 export type ProviderStatus =
   | { available: true }
@@ -26,8 +28,8 @@ export interface FoodCatalogProvider {
 
 const OFFLINE_MESSAGE = 'Нет подключения к интернету. Выберите продукт из своего каталога или введите вручную.';
 const SERVER_MESSAGE =
-  'Сервер поиска продуктов не отвечает. Возможно, приложение запущено без серверной части. ' +
-  'Дневник работает и без него: выберите продукт из каталога или введите вручную.';
+  'Поиск по названию работает только с сервером Perek.us, а эта версия приложения запущена без него. ' +
+  'Штрихкоды при этом ищутся в Open Food Facts; ещё можно выбрать продукт из каталога или ввести вручную.';
 
 const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
@@ -88,3 +90,59 @@ export const perekProvider: FoodCatalogProvider = {
     return catalogRequest(`/api/foods/barcode/${encodeURIComponent(ean)}`, signal);
   },
 };
+
+export const offProvider: FoodCatalogProvider = {
+  id: 'off',
+  label: 'Open Food Facts',
+  attribution: 'Данные: Open Food Facts (ODbL)',
+
+  async checkAvailability() {
+    return isOffline() ? { available: false, reason: 'offline', message: OFFLINE_MESSAGE } : { available: true };
+  },
+
+  async searchByName() {
+    return { status: 'error', code: 'disabled', message: 'Поиск по названию в Open Food Facts из приложения недоступен — только по штрихкоду.' };
+  },
+
+  lookupBarcode: (ean, signal) => offLookupBarcode(ean, signal),
+};
+
+export const PROVIDER_ATTRIBUTION: Record<CatalogProviderId, string> = {
+  perek: perekProvider.attribution,
+  off: offProvider.attribution,
+};
+
+/**
+ * Поиск по штрихкоду по цепочке: сначала Perek.us (точнее по российским товарам, но нужен
+ * наш сервер с ключом), если он недоступен или товара там нет — Open Food Facts.
+ */
+export function chainBarcodeProviders(primary: FoodCatalogProvider, fallback: FoodCatalogProvider): FoodCatalogProvider {
+  return {
+    id: `${primary.id}+${fallback.id}`,
+    label: `${primary.label} / ${fallback.label}`,
+    attribution: primary.attribution,
+
+    async checkAvailability(signal) {
+      const first = await primary.checkAvailability(signal);
+      return first.available ? first : fallback.checkAvailability(signal);
+    },
+
+    searchByName: (query, signal) => primary.searchByName(query, signal),
+
+    async lookupBarcode(ean, signal) {
+      const status = await primary.checkAvailability(signal);
+      if (status.available) {
+        const first = await primary.lookupBarcode(ean, signal);
+        if (first.status === 'ok' && first.foods.length > 0) return first;
+        const second = await fallback.lookupBarcode(ean, signal);
+        if (second.status === 'ok') return second;
+        // Не помог и второй источник: если первый хотя бы знает название товара, его ответ полезнее.
+        if (first.status === 'error' && first.code === 'not_found' && first.productName && !second.productName) return first;
+        return second;
+      }
+      return fallback.lookupBarcode(ean, signal);
+    },
+  };
+}
+
+export const barcodeCatalog = chainBarcodeProviders(perekProvider, offProvider);

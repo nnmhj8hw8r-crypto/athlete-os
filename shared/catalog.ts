@@ -1,6 +1,5 @@
-// Общий контракт между браузером и локальным сервером для внешних продуктовых баз.
-// Сервер приводит ответ любого провайдера (сейчас Perek.us) к этому формату,
-// клиент проверяет его той же схемой, прежде чем показать пользователю.
+// Общий контракт для внешних продуктовых баз. Perek.us приводится к этому формату на сервере,
+// Open Food Facts — прямо в браузере; клиент проверяет результат той же схемой.
 import { z } from 'zod';
 
 export const nutrientBasisSchema = z.enum(['g', 'ml']);
@@ -16,14 +15,17 @@ export const per100Schema = z.object({
 });
 export type Per100 = z.infer<typeof per100Schema>;
 
+export const catalogProviderIdSchema = z.enum(['perek', 'off']);
+export type CatalogProviderId = z.infer<typeof catalogProviderIdSchema>;
+
 export const catalogFoodSchema = z.object({
-  provider: z.literal('perek'),
+  provider: catalogProviderIdSchema,
   externalId: z.string().min(1),
   name: z.string().min(1),
   brand: z.string().optional(),
   basis: nutrientBasisSchema,
   per100: per100Schema,
-  /** Страница продукта у источника. Для бесплатного тарифа Perek.us ссылка обязательна рядом с цифрами. */
+  /** Страница продукта у источника. Perek.us (бесплатный тариф) и Open Food Facts (ODbL) требуют ссылку рядом с цифрами. */
   url: z.string().optional(),
   license: z.string().optional(),
   barcode: z.string().optional(),

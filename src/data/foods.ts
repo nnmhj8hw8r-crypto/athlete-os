@@ -1,8 +1,10 @@
 // Локальный каталог продуктов: поиск и сохранение продуктов из внешней базы.
-import type { CatalogFood } from '../../shared/catalog.ts';
+import type { CatalogFood, CatalogProviderId } from '../../shared/catalog.ts';
 import type { Food } from '../domain/schemas.ts';
 import { db } from './db.ts';
 import { saveEntity } from './repo.ts';
+
+const SOURCE_NOTE: Record<CatalogProviderId, string> = { perek: 'Perek.us', off: 'Open Food Facts' };
 
 /**
  * Сохраняет продукт из внешней базы в свой каталог, чтобы использовать его без сети.
@@ -22,8 +24,8 @@ export async function saveCatalogFood(cf: CatalogFood): Promise<Food> {
       brand: cf.brand,
       basis: cf.basis,
       per100: cf.per100,
-      source: 'perek',
-      sourceNote: 'Perek.us',
+      source: cf.provider,
+      sourceNote: SOURCE_NOTE[cf.provider],
       sourceUrl: cf.url,
       externalId: cf.externalId,
       license: cf.license,

@@ -6,6 +6,12 @@
       "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
       "runtimeArgs": ["--env-file-if-exists=.env", "server/index.ts"],
       "port": 8787
+    },
+    {
+      "name": "pages-preview",
+      "runtimeExecutable": "cmd.exe",
+      "runtimeArgs": ["/c", "set BASE_PATH=/athlete-os/&& npm run build && npx vite preview --port 4174 --strictPort"],
+      "port": 4174
     }
   ]
 }

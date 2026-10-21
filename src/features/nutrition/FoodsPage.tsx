@@ -10,10 +10,11 @@ import { EmptyState, Modal, Page, RowActions, Tabs } from '../../ui/components.t
 import { useConfirmDelete } from '../../ui/feedback.tsx';
 import { href } from '../../ui/router.ts';
 import { FoodFormDialog, type FoodPrefill } from './FoodFormDialog.tsx';
+import { PROVIDER_ATTRIBUTION } from './catalogProvider.ts';
 import { BarcodeLookup, ExternalSearch } from './FoodLookup.tsx';
 import { RecipeDialog } from './RecipeDialog.tsx';
 
-const SOURCE_LABEL: Record<Food['source'], string> = { manual: 'вручную', perek: 'Perek.us', recipe: 'рецепт' };
+const SOURCE_LABEL: Record<Food['source'], string> = { manual: 'вручную', perek: 'Perek.us', off: 'Open Food Facts', recipe: 'рецепт' };
 const r1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString('ru-RU');
 
 export function FoodsPage() {
@@ -38,8 +39,8 @@ export function FoodsPage() {
           <button type="button" className="btn" onClick={() => setRecipe({})}>
             + Рецепт
           </button>
-          <button type="button" className="btn" onClick={() => setLookup('search')}>
-            Найти в Perek.us
+          <button type="button" className="btn" onClick={() => setLookup('barcode')}>
+            Найти в базе
           </button>
         </>
       }
@@ -55,7 +56,7 @@ export function FoodsPage() {
       {foods === undefined ? (
         <p className="muted">Загрузка…</p>
       ) : list.length === 0 ? (
-        <EmptyState>{foods.length === 0 ? 'Каталог пуст. Добавьте продукт вручную, по штрихкоду или через поиск Perek.us.' : 'Ничего не найдено.'}</EmptyState>
+        <EmptyState>{foods.length === 0 ? 'Каталог пуст. Добавьте продукт вручную или найдите по штрихкоду.' : 'Ничего не найдено.'}</EmptyState>
       ) : (
         <ul className="list">
           {list.map((f) => (
@@ -69,11 +70,11 @@ export function FoodsPage() {
                 <div className="meta">
                   <span className="badge">{SOURCE_LABEL[f.source]}</span>
                   {f.barcode && <span> · штрихкод {f.barcode}</span>}
-                  {f.source === 'perek' && f.sourceUrl && (
+                  {(f.source === 'perek' || f.source === 'off') && f.sourceUrl && (
                     <>
                       {' · '}
                       <a href={f.sourceUrl} target="_blank" rel="noopener noreferrer">
-                        Данные: perek.us
+                        {PROVIDER_ATTRIBUTION[f.source]}
                       </a>
                     </>
                   )}
@@ -92,7 +93,7 @@ export function FoodsPage() {
       {editFood && <FoodFormDialog food={editFood.food} prefill={editFood.prefill} onClose={() => setEditFood(null)} />}
       {recipe && <RecipeDialog food={recipe.food} onClose={() => setRecipe(null)} />}
       {lookup && (
-        <Modal title="Добавить из Perek.us" onClose={() => setLookup(null)}>
+        <Modal title="Добавить из базы продуктов" onClose={() => setLookup(null)}>
           <Tabs
             label="Способ поиска"
             value={lookup}

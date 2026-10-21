@@ -1,0 +1,58 @@
+# Публикация приложения на GitHub Pages при каждом push в main.
+# Перед публикацией проходят проверка типов, линтер и тесты — сломанная версия на телефон не попадёт.
+# Сервер (Perek.us) здесь не запускается: на Pages работает только браузерная часть,
+# штрихкоды ищутся в Open Food Facts напрямую.
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Проверки
+        run: |
+          npm run typecheck
+          npm run lint
+          npm test
+
+      - name: Сборка
+        run: |
+          # Репозиторий <имя>.github.io открывается с корня, остальные — с /<имя репозитория>/
+          if [[ "${{ github.event.repository.name }}" == *.github.io ]]; then BASE_PATH=/; else BASE_PATH="/${{ github.event.repository.name }}/"; fi
+          BASE_PATH="$BASE_PATH" npm run build
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
