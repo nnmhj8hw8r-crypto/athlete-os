@@ -126,6 +126,18 @@ JSON `{ format: "personal-athlete-os-backup", schemaVersion, exportedAt, appVers
 Perek.us (если сервер с ключом доступен) → Open Food Facts. Без сервера (GitHub Pages) Perek пропускается.
 Поиск по названию — только Perek.us. Атрибуция в интерфейсе берётся по `food.provider`.
 
+### Встроенный справочник (с v0.3)
+
+- `src/data/referenceFoods.ts` — 150 продуктов USDA FoodData Central SR Legacy (CC0), значения на 100 г.
+  Генерируется `scripts/build-reference-foods.py` из CSV-выгрузки USDA
+  (FoodData_Central_sr_legacy_food_csv_2018-04.zip; nutrient_id 1008 ккал, 1003 белки, 1004 жиры, 1005 углеводы).
+  Запуск: `python scripts/build-reference-foods.py <папка с food.csv> src/data/referenceFoods.ts`.
+  Чтобы добавить продукт — дописать `fdc_id: 'русское название'` в `PICK`.
+- Поиск: `src/domain/foodSearch.ts` (слова в любом порядке, начало слова, е/ё) — и для своих продуктов,
+  и для справочника. В окне добавления сначала свои продукты, затем справочник.
+- Выбранный справочный продукт не попадает в `foods`; запись `meals` хранит снимок КБЖУ и `sourceUrl`
+  на карточку fdc.nal.usda.gov.
+
 ## Публикация (GitHub Pages)
 
 - `vite.config.ts`: `base` = `BASE_PATH` (по умолчанию `/`); `start_url` и `scope` манифеста — тот же путь.

@@ -147,6 +147,7 @@ a { color: var(--accent); }
 .list-item .meta { color: var(--muted); font-size: 0.85rem; overflow-wrap: anywhere; }
 .list-item.selectable { cursor: pointer; width: 100%; text-align: left; font: inherit; color: inherit; }
 .list-item.selectable:hover { border-color: var(--accent); }
+.list-item.selectable .grow { display: flex; flex-direction: column; gap: 2px; }
 
 .stat { display: flex; flex-direction: column; }
 .stat .value { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
@@ -161,7 +162,8 @@ a { color: var(--accent); }
 .meal-head { display: flex; align-items: center; gap: 8px; }
 .meal-head .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .meal-head h2 { font-size: 1.05rem; }
-.meal-add { color: var(--accent); background: var(--accent-soft); border-radius: 999px; flex: none; }
+.icon-btn.meal-add { color: var(--accent); background: var(--accent-soft); border-radius: 999px; flex: none; }
+.icon-btn.meal-add:hover { background: var(--accent); color: #fff; }
 .meal-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .meal-item {
   display: flex; gap: 8px; align-items: center; justify-content: space-between;
