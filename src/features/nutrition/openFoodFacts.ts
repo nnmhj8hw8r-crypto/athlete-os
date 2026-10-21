@@ -29,6 +29,8 @@ const offProductSchema = z.object({
     .catch(undefined),
 });
 
+export type OffPartial = NonNullable<CatalogErrorResponse['partial']>;
+
 const err = (code: CatalogErrorResponse['code'], message: string, extra: Partial<CatalogErrorResponse> = {}): CatalogErrorResponse => ({
   status: 'error',
   code,
@@ -52,7 +54,7 @@ const round1 = (n: number) => Math.round(n * 10) / 10;
  * (калории, Б, Ж, У) или они противоречивы, возвращает null — лучше попросить ввести данные
  * с упаковки, чем молча подставить ноль.
  */
-export function normalizeOffProduct(raw: unknown, ean: string): { food: CatalogFood | null; name?: string } {
+export function normalizeOffProduct(raw: unknown, ean: string): { food: CatalogFood | null; name?: string; partial?: OffPartial } {
   const r = offProductSchema.safeParse(raw);
   if (!r.success) return { food: null };
   const p = r.data;
@@ -60,21 +62,30 @@ export function normalizeOffProduct(raw: unknown, ean: string): { food: CatalogF
   const n = p.nutriments;
   const kcal = n?.['energy-kcal_100g'] ?? (n?.['energy-kj_100g'] !== undefined ? n['energy-kj_100g'] / 4.184 : undefined);
   const { proteins_100g: protein, fat_100g: fat, carbohydrates_100g: carbs } = n ?? {};
-  if (!name || kcal === undefined || protein === undefined || fat === undefined || carbs === undefined) return { food: null, name };
-
   const basis = basisOf(p);
-  if (basis === 'g' && protein + fat + carbs > 100) return { food: null, name };
   const code = p.code?.trim() || ean;
+  const brand = p.brands?.split(',')[0]?.trim() || undefined;
+  const url = `${OFF_BASE_URL}/product/${encodeURIComponent(code)}`;
+
+  // Неполные данные не превращаются в продукт, но то, что известно, подставляется в форму ручного ввода.
+  const known = Object.fromEntries(
+    Object.entries({ kcal, protein, fat, carbs })
+      .filter((e): e is [string, number] => e[1] !== undefined)
+      .map(([k, v]) => [k, round1(v)]),
+  ) as OffPartial['per100'];
+  const partial: OffPartial = { brand, basis, per100: known, url };
+  if (!name || kcal === undefined || protein === undefined || fat === undefined || carbs === undefined) return { food: null, name, partial };
+  if (basis === 'g' && protein + fat + carbs > 100) return { food: null, name, partial: { brand, basis, per100: {}, url } };
   return {
     name,
     food: {
       provider: 'off',
       externalId: code,
       name,
-      brand: p.brands?.split(',')[0]?.trim() || undefined,
+      brand,
       basis,
       per100: { kcal: round1(kcal), protein: round1(protein), fat: round1(fat), carbs: round1(carbs) },
-      url: `${OFF_BASE_URL}/product/${encodeURIComponent(code)}`,
+      url,
       license: 'ODbL',
       barcode: code,
     },
@@ -91,14 +102,14 @@ export function parseOffBarcodeBody(httpStatus: number, body: unknown, ean: stri
   if (!isObject(body)) return err('bad_response', 'Open Food Facts вернул ответ в неожиданном формате. Введите продукт вручную.');
   if (body.status === 0 || !isObject(body.product)) return notFound;
 
-  const { food, name } = normalizeOffProduct(body.product, ean);
+  const { food, name, partial } = normalizeOffProduct(body.product, ean);
   if (food) return { status: 'ok', exact: true, foods: [food] };
   return err(
     'not_found',
     name
-      ? `Товар «${name}» есть в Open Food Facts, но пищевая ценность указана не полностью. Введите данные с упаковки.`
+      ? `Товар «${name}» есть в Open Food Facts, но пищевая ценность указана не полностью. Допишите недостающее с упаковки.`
       : 'В Open Food Facts нет пищевой ценности для этого штрихкода. Введите данные с упаковки.',
-    name ? { productName: name } : {},
+    { ...(name ? { productName: name } : {}), ...(partial ? { partial } : {}) },
   );
 }
 

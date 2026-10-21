@@ -260,7 +260,22 @@ export function BarcodeLookup({ onSelected, onManual, provider = barcodeCatalog 
         setResult({ ean, response: { status: 'error', code: 'disabled', message: `В вашем каталоге такого штрихкода нет. ${status.message}` } });
         return;
       }
-      setResult({ ean, response: await provider.lookupBarcode(ean) });
+      const response = await provider.lookupBarcode(ean);
+      // Товар известен, но данных не хватает — сразу открываем форму с тем, что нашлось, вместо тупика.
+      if (response.status === 'error' && response.code === 'not_found' && (response.partial || response.productName)) {
+        notify('Данных о продукте не хватает — допишите недостающее с упаковки');
+        onManual({
+          barcode: ean,
+          name: response.productName,
+          brand: response.partial?.brand,
+          basis: response.partial?.basis,
+          per100: response.partial?.per100,
+          sourceNote: response.partial ? 'Open Food Facts, дополнено вручную' : undefined,
+          sourceUrl: response.partial?.url,
+        });
+        return;
+      }
+      setResult({ ean, response });
     } finally {
       setLoading(false);
     }

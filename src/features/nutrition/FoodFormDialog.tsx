@@ -10,6 +10,12 @@ import { useFeedback } from '../../ui/feedback.tsx';
 export interface FoodPrefill {
   name?: string;
   barcode?: string;
+  brand?: string;
+  basis?: Food['basis'];
+  /** Известные из внешней базы значения; недостающие пользователь дописывает с упаковки. */
+  per100?: Partial<Food['per100']>;
+  sourceNote?: string;
+  sourceUrl?: string;
 }
 
 interface Props {
@@ -23,14 +29,14 @@ export function FoodFormDialog({ food, prefill, onClose, onSaved }: Props) {
   const { notify } = useFeedback();
   const [f, setF] = useState({
     name: food?.name ?? prefill?.name ?? '',
-    brand: food?.brand ?? '',
-    basis: food?.basis ?? 'g',
-    kcal: numberToField(food?.per100.kcal),
-    protein: numberToField(food?.per100.protein),
-    fat: numberToField(food?.per100.fat),
-    carbs: numberToField(food?.per100.carbs),
-    sourceNote: food?.sourceNote ?? '',
-    sourceUrl: food?.sourceUrl ?? '',
+    brand: food?.brand ?? prefill?.brand ?? '',
+    basis: food?.basis ?? prefill?.basis ?? 'g',
+    kcal: numberToField(food?.per100.kcal ?? prefill?.per100?.kcal),
+    protein: numberToField(food?.per100.protein ?? prefill?.per100?.protein),
+    fat: numberToField(food?.per100.fat ?? prefill?.per100?.fat),
+    carbs: numberToField(food?.per100.carbs ?? prefill?.per100?.carbs),
+    sourceNote: food?.sourceNote ?? prefill?.sourceNote ?? '',
+    sourceUrl: food?.sourceUrl ?? prefill?.sourceUrl ?? '',
     barcode: food?.barcode ?? prefill?.barcode ?? '',
   });
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -105,6 +111,12 @@ export function FoodFormDialog({ food, prefill, onClose, onSaved }: Props) {
     >
       <form id="food-form" className="form" onSubmit={submit} noValidate>
         <FormError errors={errors} />
+        {!food && prefill?.sourceNote && (
+          <p className="notice info">
+            Часть данных взята из базы ({prefill.sourceNote}). Сверьте с упаковкой и заполните пустые поля — продукт сохранится в ваш
+            каталог и в следующий раз найдётся по штрихкоду сразу.
+          </p>
+        )}
         <Field label="Название" error={errors.name}>
           {(p) => <input {...p} className="input" value={f.name} onChange={set('name')} autoFocus />}
         </Field>

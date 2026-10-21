@@ -87,6 +87,23 @@ describe('Open Food Facts: ответы API', () => {
     expect(r).toMatchObject({ status: 'error', code: 'not_found', productName: 'Сырок' });
   });
 
+  it('неполная пищевая ценность — известные значения передаются для подстановки в форму', () => {
+    const product = {
+      product_name: 'Белок яичный',
+      brands: 'Ферма',
+      product_quantity_unit: 'g',
+      nutriments: { 'energy-kcal_100g': 48, proteins_100g: 11.1, fat_100g: 0 },
+    };
+    const r = parseOffBarcodeBody(200, { status: 1, product }, EAN);
+    expectContract(r);
+    expect(r).toMatchObject({
+      code: 'not_found',
+      productName: 'Белок яичный',
+      partial: { brand: 'Ферма', basis: 'g', per100: { kcal: 48, protein: 11.1, fat: 0 }, url: `https://world.openfoodfacts.org/product/${EAN}` },
+    });
+    expect(r.status === 'error' && r.partial?.per100.carbs).toBeUndefined();
+  });
+
   it('429, 5xx и непонятный ответ', () => {
     expect(parseOffBarcodeBody(429, undefined, EAN)).toMatchObject({ code: 'rate_limited' });
     expect(parseOffBarcodeBody(503, undefined, EAN)).toMatchObject({ code: 'upstream_error' });

@@ -61,6 +61,15 @@ export const catalogResponseSchema = z.discriminatedUnion('status', [
     retryAfterSec: z.number().optional(),
     /** Для 404 по штрихкоду: товар известен, но пищевой ценности нет. */
     productName: z.string().optional(),
+    /** Товар известен, но данные неполные: что есть — подставляется в форму ручного ввода. */
+    partial: z
+      .object({
+        brand: z.string().optional(),
+        basis: nutrientBasisSchema.optional(),
+        per100: per100Schema.partial(),
+        url: z.string().optional(),
+      })
+      .optional(),
   }),
 ]);
 export type CatalogResponse = z.infer<typeof catalogResponseSchema>;
