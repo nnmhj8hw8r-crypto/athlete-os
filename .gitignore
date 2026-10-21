@@ -1,0 +1,23 @@
+# Зависимости и сборка
+node_modules/
+dist/
+dev-dist/
+coverage/
+*.tsbuildinfo
+
+# Секреты: настоящий .env никогда не коммитится, только .env.example
+.env
+.env.*
+!.env.example
+
+# Личные данные: резервные копии и экспорт дневника не должны попадать в Git
+backups/
+*.backup.json
+athlete-os-backup-*.json
+
+# Служебное
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
