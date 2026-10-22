@@ -59,11 +59,13 @@ export function TrainingPage({ route }: { route: Route }) {
     >
       <ActiveBanner />
       <Tabs compact label="Разделы тренировок" value={tab} onChange={(t) => navigate(`/training?tab=${t}`, true)} options={TABS} />
-      {tab === 'week' && <WeekTab onStartFree={() => setStartOpen(true)} />}
-      {tab === 'programs' && <ProgramsTab />}
-      {tab === 'exercises' && <ExercisesTab />}
-      {tab === 'journal' && <JournalTab onAdd={() => setStartOpen(true)} />}
-      {tab === 'measure' && <MeasureTab />}
+      <div key={tab} className="tab-anim">
+        {tab === 'week' && <WeekTab onStartFree={() => setStartOpen(true)} />}
+        {tab === 'programs' && <ProgramsTab />}
+        {tab === 'exercises' && <ExercisesTab />}
+        {tab === 'journal' && <JournalTab onAdd={() => setStartOpen(true)} />}
+        {tab === 'measure' && <MeasureTab />}
+      </div>
       {startOpen && <StartDialog onClose={() => setStartOpen(false)} />}
     </Page>
   );

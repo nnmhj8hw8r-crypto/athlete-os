@@ -187,6 +187,16 @@ Perek.us (если сервер с ключом доступен) → Open Food 
 - Маршруты: `/training?tab=…`, `/training/program?id=`, `/training/session?ex=`, `/training/exercise?id=`,
   `/training/test?id=`. Номер упражнения в адресе — жест «назад» ведёт к обзору тренировки.
 
+### Оформление и сводки (v0.6)
+
+- Тема — только переменные в начале `src/styles.css` (светлая/тёмная по `prefers-color-scheme`), анимации —
+  в конце файла (`.route-anim`, `.tab-anim`, `dialog.modal[open]`).
+- Карточки, общие для вкладок и главной: `src/features/season/SeasonCards.tsx` (ближайший старт, масса тела),
+  `src/features/recovery/RecoveryCharts.tsx` (полоса 14 дней, время в постели, самочувствие).
+- `src/ui/BarChart.tsx` — столбики по дням; `Segmented` в `components.tsx` — переключатель периода.
+- Рисунки упражнений: `src/domain/exerciseImages.ts` → `public/exercises/<слаг>.svg`, `ExerciseIcon`/`ExercisePose`
+  в `src/ui/BodyFigure.tsx`.
+
 ### Окна (v0.4.1)
 
 `src/ui/modalStack.ts` — блокировка прокрутки страницы под окном и запись окна в истории браузера (жест

@@ -57,11 +57,13 @@ export function SeasonPage({ route }: { route: Route }) {
           { value: 'weight', label: 'Масса тела' },
         ]}
       />
-      {tab === 'competitions' ? (
-        <Competitions onEdit={(c) => setCompDlg({ competition: c })} onAdd={() => setCompDlg({})} />
-      ) : (
-        <Weights onEdit={(w) => setWeightDlg({ entry: w })} onAdd={() => setWeightDlg({})} />
-      )}
+      <div key={tab} className="tab-anim">
+        {tab === 'competitions' ? (
+          <Competitions onEdit={(c) => setCompDlg({ competition: c })} onAdd={() => setCompDlg({})} />
+        ) : (
+          <Weights onEdit={(w) => setWeightDlg({ entry: w })} onAdd={() => setWeightDlg({})} />
+        )}
+      </div>
       {compDlg && <CompetitionDialog competition={compDlg.competition} onClose={() => setCompDlg(null)} />}
       {weightDlg && <BodyWeightDialog entry={weightDlg.entry} onClose={() => setWeightDlg(null)} />}
     </Page>

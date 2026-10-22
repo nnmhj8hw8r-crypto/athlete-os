@@ -47,7 +47,27 @@ export const EXERCISE_IMAGE_SOURCE: Record<string, string> = {
   'kb-snatch': '0148',
 };
 
+/** Рисунок взят от похожего упражнения набора (точного нет) — так и подписывается. */
+export const APPROXIMATE_IMAGES: ReadonlySet<string> = new Set([
+  'fly-machine', // разводка гантелей лёжа
+  'clap-pushups', // обычные отжимания
+  'pullups-weighted', // подтягивания без отягощения
+  'lat-pulldown', // тяга обратным хватом
+  'barbell-row', // тяга штанги обратным хватом
+  'db-row', // тяга гантели на заднюю дельту
+  'db-shoulder-press', // жим одной рукой
+  'bulgarian-split', // приседание на одной ноге со штангой
+  'hip-thrust', // ягодичный мостик без штанги
+  'kb-snatch', // рывок штанги одной рукой
+]);
+
 export const EXERCISE_IMAGE_CREDIT = 'Рисунок: Everkinetic (Greg Priday), CC BY-SA 4.0';
+
+/** Подпись под рисунком: автор и лицензия, для похожих — пометка. */
+export function exerciseImageCredit(exerciseId: string): string {
+  const slug = exerciseId.startsWith('lib:') ? exerciseId.slice(4) : exerciseId;
+  return APPROXIMATE_IMAGES.has(slug) ? `Похожее упражнение из набора. ${EXERCISE_IMAGE_CREDIT}` : EXERCISE_IMAGE_CREDIT;
+}
 export const EXERCISE_IMAGE_LICENSE_URL = 'https://creativecommons.org/licenses/by-sa/4.0/deed.ru';
 
 /** Путь к рисунку встроенного упражнения относительно корня сайта или null, если рисунка нет. */

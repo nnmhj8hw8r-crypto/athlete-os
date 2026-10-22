@@ -6,7 +6,7 @@ import { deleteEntity } from '../../data/repo.ts';
 import { EXERCISE_NOTES_KEY, getExerciseNotes, setExerciseNote } from '../../data/training.ts';
 import { EXERCISE_GROUP_LABEL, EXERCISE_METRIC_LABEL, exerciseHistory, exerciseProgress, formatClock, formatSet } from '../../domain/training.ts';
 import { formatDateKey, formatDateTime, toDateKey } from '../../domain/time.ts';
-import { EXERCISE_IMAGE_CREDIT, EXERCISE_IMAGE_LICENSE_URL, exerciseImagePath } from '../../domain/exerciseImages.ts';
+import { EXERCISE_IMAGE_LICENSE_URL, exerciseImageCredit, exerciseImagePath } from '../../domain/exerciseImages.ts';
 import { BodyFigure, ExercisePose } from '../../ui/BodyFigure.tsx';
 import { EmptyState, TopBar } from '../../ui/components.tsx';
 import { useConfirmDelete, useFeedback } from '../../ui/feedback.tsx';
@@ -62,7 +62,7 @@ export function ExercisePage({ route }: { route: Route }) {
         }
       />
       <div className="ex-hero">
-        {pose && <ExercisePose src={pose} credit={EXERCISE_IMAGE_CREDIT} licenseUrl={EXERCISE_IMAGE_LICENSE_URL} />}
+        {pose && <ExercisePose src={pose} credit={exerciseImageCredit(ex.id)} licenseUrl={EXERCISE_IMAGE_LICENSE_URL} />}
         <BodyFigure primary={ex.muscles} secondary={ex.musclesSecondary} view="both" className="ex-hero-figure" title={`Мышцы: ${ex.name}`} />
         <h1 className="ex-title">{ex.name}</h1>
         <p className="muted">

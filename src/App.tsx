@@ -80,7 +80,10 @@ export function App() {
         </nav>
         <main className="main">
           {render ? (
-            render(route)
+            // Ключ по адресу: при переходе страница появляется заново с короткой анимацией.
+            <div key={route.path} className="route-anim">
+              {render(route)}
+            </div>
           ) : (
             <div className="empty">
               <p>Страница не найдена.</p>

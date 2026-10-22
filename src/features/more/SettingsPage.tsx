@@ -87,6 +87,27 @@ export function SettingsPage() {
         </p>
         <p className="small muted">Платные API ИИ не используются. Сводку для ИИ вы копируете вручную.</p>
       </Card>
+
+      <Card title="Источники данных и лицензии">
+        <ul className="sources">
+          <li>
+            Рисунки упражнений — <a href="https://github.com/everkinetic/data" target="_blank" rel="noreferrer">Everkinetic</a>{' '}
+            (Greg Priday),{' '}
+            <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.ru" target="_blank" rel="noreferrer">
+              CC BY-SA 4.0
+            </a>
+            . Изменения: переименованы файлы, убраны фиксированные размеры. Схема мышц — собственный рисунок приложения.
+          </li>
+          <li>
+            Встроенный справочник продуктов — <a href="https://fdc.nal.usda.gov" target="_blank" rel="noreferrer">USDA FoodData Central</a>{' '}
+            (общественное достояние, CC0).
+          </li>
+          <li>
+            Офлайн-база российских товаров и поиск по штрихкоду — <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer">Open Food Facts</a>{' '}
+            (ODbL 1.0).
+          </li>
+        </ul>
+      </Card>
     </Page>
   );
 }
