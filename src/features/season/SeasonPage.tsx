@@ -5,13 +5,13 @@ import { db } from '../../data/db.ts';
 import { deleteEntity } from '../../data/repo.ts';
 import { COMPETITION_STATUS_LABEL, daysUntil, formatCountdown, nextCompetition } from '../../domain/competition.ts';
 import type { BodyWeight, Competition } from '../../domain/schemas.ts';
-import { formatDateKey, formatDateTime, toDateKey, todayKey } from '../../domain/time.ts';
+import { formatDateTime, toDateKey, todayKey } from '../../domain/time.ts';
 import { EmptyState, Page, RowActions, Tabs } from '../../ui/components.tsx';
 import { useConfirmDelete } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
-import { LineChart } from '../../ui/LineChart.tsx';
 import { clearParam, type Route } from '../../ui/router.ts';
 import { BodyWeightDialog } from './BodyWeightDialog.tsx';
+import { NextCompetitionCard, WeightChartCard } from './SeasonCards.tsx';
 import { CompetitionDialog } from './CompetitionDialog.tsx';
 
 type Tab = 'competitions' | 'weight';
@@ -47,6 +47,7 @@ export function SeasonPage({ route }: { route: Route }) {
         )
       }
     >
+      <NextCompetitionCard />
       <Tabs
         label="Разделы сезона"
         value={tab}
@@ -146,7 +147,6 @@ function Competitions({ onEdit, onAdd }: { onEdit: (c: Competition) => void; onA
 
 function Weights({ onEdit, onAdd }: { onEdit: (w: BodyWeight) => void; onAdd: () => void }) {
   const weights = useLiveQuery(() => db.bodyWeights.orderBy('measuredAt').toArray(), []);
-  const competitions = useLiveQuery(() => db.competitions.toArray(), []);
   const confirmDelete = useConfirmDelete();
   if (weights === undefined) return <p className="muted">Загрузка…</p>;
   if (weights.length === 0) {
@@ -162,31 +162,10 @@ function Weights({ onEdit, onAdd }: { onEdit: (w: BodyWeight) => void; onAdd: ()
       </EmptyState>
     );
   }
-  const next = competitions ? nextCompetition(competitions) : undefined;
-  const recent = weights.slice(-60);
-  const last = weights[weights.length - 1]!;
 
   return (
     <div className="stack">
-      <div className="card">
-        <div className="card-title">
-          <h2>Динамика</h2>
-          <span className="muted small">последние {recent.length}</span>
-        </div>
-        <LineChart
-          label="Масса тела"
-          unit="кг"
-          points={recent.map((w) => ({ x: Date.parse(w.measuredAt), y: w.weightKg }))}
-          reference={next?.targetWeightKg !== undefined ? { y: next.targetWeightKg, label: `цель ${r1(next.targetWeightKg)} кг` } : undefined}
-          formatX={(x) => formatDateKey(toDateKey(new Date(x)))}
-        />
-        {next?.targetWeightKg !== undefined && (
-          <p className="small muted">
-            Последняя запись: {r1(last.weightKg)} кг. Цель к «{next.name}»: {r1(next.targetWeightKg)} кг (разница {last.weightKg - next.targetWeightKg > 0 ? '+' : ''}
-            {r1(last.weightKg - next.targetWeightKg)} кг). Цель меняется только вами в карточке соревнования.
-          </p>
-        )}
-      </div>
+      <WeightChartCard />
       <ul className="list">
         {[...weights].reverse().map((w) => (
           <li key={w.id} className="list-item">
