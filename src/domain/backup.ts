@@ -16,7 +16,7 @@ export const BACKUP_FORMAT = 'personal-athlete-os-backup';
  * Версия структуры данных. Совпадает с версией схемы IndexedDB (src/data/db.ts).
  * При изменении структуры: увеличить, добавить миграцию в migrateBackupData и в db.ts.
  */
-export const DATA_SCHEMA_VERSION = 3;
+export const DATA_SCHEMA_VERSION = 4;
 export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 const MAX_REPORTED_ERRORS = 20;
 
@@ -63,6 +63,8 @@ const MIGRATIONS: Record<number, (data: Record<string, unknown>) => Record<strin
       });
     return { ...data, programs, schedule: data.schedule ?? [], testDefs: data.testDefs ?? [], testResults: data.testResults ?? [] };
   },
+  // 3 → 4: утренние чек-ины (новая таблица, пустая).
+  3: (data) => ({ ...data, checkins: data.checkins ?? [] }),
 };
 
 /** Приведение данных старых версий к текущей: шаги применяются по очереди. */

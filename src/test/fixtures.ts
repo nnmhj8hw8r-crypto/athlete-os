@@ -72,4 +72,5 @@ export const drafts: { [K in EntityTableName]: DraftOf<K> } = {
   schedule: { date: '2026-10-21', slot: 'evening', programId: 'pr-1' },
   testDefs: { name: 'Тестовый замер', unit: 'reps', higherIsBetter: true },
   testResults: { testId: 'lib:pullups-max', date: '2026-10-21', value: 15 },
+  checkins: { date: '2026-10-21', sleepHours: 7.5, sleepQuality: 4, energy: 4, mood: 4, stress: 2, soreMuscles: ['quads'], restingHr: 52, hrvRmssd: 68 },
 };

@@ -347,6 +347,29 @@ export type TestResult = z.infer<typeof testResultSchema>;
 
 // ---------- Сон и восстановление ----------
 
+/**
+ * Утренний чек-ин (v0.8): одна запись на день. Все поля необязательны — оценка готовности считается
+ * по тому, что введено. Шкалы 1–5: сон и энергия/настроение — больше лучше, стресс — больше хуже.
+ */
+export const checkinSchema = z.object({
+  id,
+  /** День по Москве, YYYY-MM-DD. */
+  date: dateKey,
+  sleepHours: z.number().finite().min(0, 'Не меньше 0').max(24, 'Не больше 24 часов').optional(),
+  sleepQuality: rating(1, 5).optional(),
+  energy: rating(1, 5).optional(),
+  mood: rating(1, 5).optional(),
+  stress: rating(1, 5).optional(),
+  /** Группы мышц, которые болят (отмечаются на карте). */
+  soreMuscles: z.array(muscleSchema).max(16),
+  restingHr: z.number().int('Целое число').min(25, 'От 25 до 150').max(150, 'От 25 до 150').optional(),
+  /** HRV как RMSSD, мс (ln(RMSSD) вычисляется при показе). */
+  hrvRmssd: z.number().finite().min(1, 'От 1 до 300 мс').max(300, 'От 1 до 300 мс').optional(),
+  notes: optionalText(1000),
+  ...timestamps,
+});
+export type Checkin = z.infer<typeof checkinSchema>;
+
 export const sleepEntrySchema = z
   .object({
     id,
@@ -487,6 +510,7 @@ export const ENTITY_SCHEMAS = {
   supplements: supplementSchema,
   sources: knowledgeSourceSchema,
   water: waterEntrySchema,
+  checkins: checkinSchema,
   settings: settingSchema,
 } as const;
 
@@ -511,5 +535,6 @@ export const TABLE_LABELS: Record<TableName, string> = {
   supplements: 'Добавки',
   sources: 'Источники',
   water: 'Вода',
+  checkins: 'Утренние чек-ины',
   settings: 'Настройки',
 };

@@ -197,6 +197,16 @@ Perek.us (если сервер с ключом доступен) → Open Food 
 - Рисунки упражнений: `src/domain/exerciseImages.ts` → `public/exercises/<слаг>.svg`, `ExerciseIcon`/`ExercisePose`
   в `src/ui/BodyFigure.tsx`.
 
+### Готовность v0.8
+
+- Данные: таблица `checkins` (версия 4), `src/data/checkins.ts` (сохранение дня, настройки `settings.readinessConfig`).
+- Расчёты (чистые, с тестами): `src/domain/readiness.ts` (норма, оценка, факторы, тексты), `muscleFatigue.ts`
+  (усталость групп), `trainingLoad.ts` (нагрузка, усталость, форма), `muscles.ts` (названия, крупные группы).
+- Интерфейс: `src/features/recovery/useReadiness.ts` (общий расчёт для всех вкладок), `ReadinessCard`,
+  `CheckinDialog`, `MuscleStatusMap` (серые уровни, штриховка, нажатие по маске слоя), `MuscleFatigueCard`,
+  `ReadinessHistory`, `ReadinessSettingsDialog`, `ReadinessHint` (Тренировки, Питание);
+  `src/features/season/WeeklyReadinessCard.tsx`, `src/ui/MultiLineChart.tsx`.
+
 ### Интерфейс v0.7
 
 - Нижняя панель — `src/App.tsx` (`MAIN` + `MORE`), стили в начале `src/styles.css` («Нижняя панель»).

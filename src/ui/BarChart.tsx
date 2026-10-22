@@ -12,13 +12,15 @@ interface Props {
   bars: Bar[];
   label: string;
   formatValue: (v: number) => string;
+  onPick?: (key: string) => void;
+  selected?: string;
 }
 
 const W = 600;
 const H = 180;
 const PAD = { l: 8, r: 8, t: 22, b: 22 };
 
-export function BarChart({ bars, label, formatValue }: Props) {
+export function BarChart({ bars, label, formatValue, onPick, selected }: Props) {
   const titleId = useId();
   const values = bars.flatMap((b) => (b.value === null ? [] : [b.value]));
   if (values.length === 0) return <p className="muted small">За этот период записей нет.</p>;
@@ -37,8 +39,11 @@ export function BarChart({ bars, label, formatValue }: Props) {
       {bars.map((b, i) => {
         const x = PAD.l + i * slot + (slot - bw) / 2;
         return (
-          <g key={b.key}>
-            {b.value !== null && <rect className="bar" x={x} y={H - PAD.b - h(b.value)} width={bw} height={Math.max(1, h(b.value))} rx={Math.min(4, bw / 2)} />}
+          <g key={b.key} onClick={onPick ? () => onPick(b.key) : undefined} className={onPick ? 'pickable' : undefined}>
+            {onPick && <rect x={PAD.l + i * slot} y={PAD.t} width={slot} height={H - PAD.t - PAD.b} fill="transparent" />}
+            {b.value !== null && (
+              <rect className={`bar${selected === b.key ? ' selected' : ''}`} x={x} y={H - PAD.b - h(b.value)} width={bw} height={Math.max(1, h(b.value))} rx={Math.min(4, bw / 2)} />
+            )}
             {(i % every === 0 || i === bars.length - 1) && (
               <text x={x + bw / 2} y={H - 6} textAnchor="middle">
                 {b.label}

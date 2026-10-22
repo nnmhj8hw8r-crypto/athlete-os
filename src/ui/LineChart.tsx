@@ -14,13 +14,17 @@ interface Props {
   label: string;
   reference?: { y: number; label: string };
   formatX: (x: number) => string;
+  /** Нажатие по графику — ближайшая точка (x). */
+  onPick?: (x: number) => void;
+  /** Выбранная точка — подсвечивается. */
+  selected?: number;
 }
 
 const W = 600;
 const H = 200;
 const PAD = { l: 44, r: 12, t: 12, b: 26 };
 
-export function LineChart({ points, unit, label, reference, formatX }: Props) {
+export function LineChart({ points, unit, label, reference, formatX, onPick, selected }: Props) {
   const titleId = useId();
   const gradId = useId();
   const style = useChartStyle();
@@ -45,7 +49,22 @@ export function LineChart({ points, unit, label, reference, formatX }: Props) {
   const first = points[0]!;
 
   return (
-    <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-labelledby={titleId}>
+    <svg
+      className={`chart${onPick ? ' pickable' : ''}`}
+      viewBox={`0 0 ${W} ${H}`}
+      role="img"
+      aria-labelledby={titleId}
+      onClick={
+        onPick
+          ? (e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              const vx = ((e.clientX - r.left) / r.width) * W;
+              const best = points.reduce((a, p) => (Math.abs(sx(p.x) - vx) < Math.abs(sx(a.x) - vx) ? p : a), points[0]!);
+              onPick(best.x);
+            }
+          : undefined
+      }
+    >
       <title id={titleId}>
         {`${label}: от ${first.y.toLocaleString('ru-RU')} ${unit} (${formatX(first.x)}) до ${last.y.toLocaleString('ru-RU')} ${unit} (${formatX(last.x)}), записей: ${points.length}`}
       </title>
@@ -76,6 +95,15 @@ export function LineChart({ points, unit, label, reference, formatX }: Props) {
       {points.length <= 31 &&
         points.map((p) => <circle key={p.x} className="dot" cx={sx(p.x)} cy={sy(p.y)} r={p === last ? 4.5 : 2.5} />)}
       {points.length > 31 && <circle className="dot" cx={sx(last.x)} cy={sy(last.y)} r={4.5} />}
+      {selected !== undefined &&
+        points
+          .filter((p) => p.x === selected)
+          .map((p) => (
+            <g key="sel">
+              <line className="axis" x1={sx(p.x)} x2={sx(p.x)} y1={PAD.t} y2={H - PAD.b} />
+              <circle className="dot selected" cx={sx(p.x)} cy={sy(p.y)} r={6.5} />
+            </g>
+          ))}
       <text x={PAD.l} y={H - 6}>
         {formatX(minX)}
       </text>

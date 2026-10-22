@@ -10,6 +10,7 @@ import Dexie, { type EntityTable } from 'dexie';
 import { programFromTemplate } from '../domain/training.ts';
 import type {
   BodyWeight,
+  Checkin,
   Competition,
   Exercise,
   Food,
@@ -47,13 +48,14 @@ export type AthleteDb = Dexie & {
   testResults: EntityTable<TestResult, 'id'>;
   /** Фото прогресса и обложки программ (Blob). Не входит в резервную копию JSON — см. src/data/photos.ts. */
   photos: EntityTable<PhotoRecord, 'id'>;
+  checkins: EntityTable<Checkin, 'id'>;
   settings: EntityTable<Setting, 'key'>;
 };
 
 export const DB_NAME = 'personal-athlete-os';
 
 /** Индексы таблиц версии 1. Первое поле — первичный ключ. */
-const SCHEMA_V1: Record<Exclude<TableName, 'water' | 'programs' | 'schedule' | 'testDefs' | 'testResults'>, string> = {
+const SCHEMA_V1: Record<Exclude<TableName, 'water' | 'programs' | 'schedule' | 'testDefs' | 'testResults' | 'checkins'>, string> = {
   foods: 'id, name, barcode, source, externalId, updatedAt',
   meals: 'id, date, foodId',
   workouts: 'id, startAt, type, templateId',
@@ -89,6 +91,8 @@ export function openDb(name = DB_NAME): AthleteDb {
       const templates = (await tx.table('workoutTemplates').toArray()) as WorkoutTemplate[];
       if (templates.length) await tx.table('programs').bulkPut(templates.map(programFromTemplate));
     });
+  // Версия 4 (v0.8, «Восстановление»): утренние чек-ины для оценки готовности. Старые данные не меняются.
+  db.version(4).stores({ checkins: 'id, &date' });
   return db;
 }
 

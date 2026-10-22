@@ -12,6 +12,7 @@ import { Icons } from '../../ui/icons.tsx';
 import { clearParam, type Route } from '../../ui/router.ts';
 import { BodyWeightDialog } from './BodyWeightDialog.tsx';
 import { NextCompetitionCard, WeightChartCard } from './SeasonCards.tsx';
+import { WeeklyReadinessCard } from './WeeklyReadinessCard.tsx';
 import { CompetitionDialog } from './CompetitionDialog.tsx';
 
 type Tab = 'competitions' | 'weight';
@@ -48,6 +49,7 @@ export function SeasonPage({ route }: { route: Route }) {
       }
     >
       <NextCompetitionCard />
+      <WeeklyReadinessCard />
       <Tabs
         label="Разделы сезона"
         value={tab}

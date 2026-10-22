@@ -5,13 +5,13 @@
 import { useState, type ReactNode } from 'react';
 import type { Muscle } from '../domain/schemas.ts';
 
-type View = 'front' | 'back';
+export type View = 'front' | 'back';
 
 export const MUSCLE_MAP_CREDIT = 'Схема мышц: Termininja (Wikimedia Commons) / wger, CC BY-SA 3.0';
 export const MUSCLE_MAP_LICENSE_URL = 'https://creativecommons.org/licenses/by-sa/3.0/deed.ru';
 
 /** Номера слоёв wger для каждой нашей мышцы на каждом виде. */
-const LAYERS: Record<View, Partial<Record<Muscle, number[]>>> = {
+export const LAYERS: Record<View, Partial<Record<Muscle, number[]>>> = {
   front: { chest: [4, 3], delts: [2], biceps: [1, 13], abs: [6], obliques: [14], quads: [10], calves: [7] },
   back: { traps: [9], lats: [12], rearDelts: [2], triceps: [5], lowerBack: [16], glutes: [8], hamstrings: [11], calves: [7, 15] },
 };
@@ -20,7 +20,7 @@ const LAYERS: Record<View, Partial<Record<Muscle, number[]>>> = {
  * Мышцы, для которых в наборе нет слоя (предплечья, приводящие бедра), — свои полупрозрачные контуры
  * в координатах рисунка 200 × 362.
  */
-const EXTRA: Record<View, Partial<Record<Muscle, [cx: number, cy: number, rx: number, ry: number, rot: number][]>>> = {
+export const EXTRA: Record<View, Partial<Record<Muscle, [cx: number, cy: number, rx: number, ry: number, rot: number][]>>> = {
   front: {
     forearms: [
       [31, 160, 5.5, 17, 20],
@@ -47,7 +47,8 @@ export function pickView(primary: readonly Muscle[], secondary: readonly Muscle[
   return score(BACK_SET) > score(FRONT_SET) ? 'back' : 'front';
 }
 
-const url = (p: string) => `${import.meta.env.BASE_URL}muscles/${p}`;
+export const muscleUrl = (p: string) => `${import.meta.env.BASE_URL}muscles/${p}`;
+const url = muscleUrl;
 
 function AnatomyView({ view, primary, secondary, caption }: { view: View; primary: readonly Muscle[]; secondary: readonly Muscle[]; caption?: boolean }) {
   const layers = (list: readonly Muscle[]) => [...new Set(list.flatMap((m) => LAYERS[view][m] ?? []))];

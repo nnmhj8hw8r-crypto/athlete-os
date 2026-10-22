@@ -473,7 +473,7 @@ dialog.modal { overscroll-behavior: contain; overflow: hidden; }
 .chart .axis { stroke: var(--border); stroke-width: 1; }
 .chart .line { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; }
 .chart .dot { fill: var(--accent); }
-.chart .ref { stroke: var(--warning); stroke-width: 1.5; stroke-dasharray: 6 4; }
+.chart .ref { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 6 4; }
 .chart text { fill: var(--muted); font-size: 11px; font-family: var(--font); }
 
 .scanner video { width: 100%; border-radius: var(--radius-sm); background: #000; max-height: 50dvh; object-fit: cover; }
@@ -869,3 +869,79 @@ html { scroll-behavior: smooth; }
 .switch input:checked + .switch-track::after { transform: translateX(18px); }
 .switch input:focus-visible + .switch-track { outline: 3px solid var(--focus); outline-offset: 2px; }
 .widget-name { font-weight: 600; overflow-wrap: anywhere; }
+
+/* Карта мышц со статусами (Восстановление): только оттенки серого и штриховка */
+.status-figure { height: 300px; width: 100%; padding: 12px 12px 26px; background: #fff; border-radius: var(--radius); }
+.status-map.clickable { cursor: pointer; }
+.status-map .status-base { filter: grayscale(1) contrast(0.38) brightness(1.95); }
+.status-map .status-lvl { filter: grayscale(1); }
+.status-map .status-lvl.lvl-1 { filter: grayscale(1) brightness(2.25); }
+.status-map .status-lvl.lvl-2 { filter: grayscale(1) brightness(1.6); }
+.status-map .status-lvl.lvl-3 { filter: grayscale(1) brightness(0.4); }
+.status-map .status-hatch {
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(45deg, #111 0 1.5px, transparent 1.5px 5px);
+  -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+}
+.status-ell.lvl-1 { fill: #c8c8cc; }
+.status-ell.lvl-2 { fill: #8a8a90; }
+.status-ell.lvl-3 { fill: #2a2a2e; }
+.status-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8rem; color: var(--muted); }
+.status-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.status-legend .sw { width: 16px; height: 16px; border-radius: 5px; border: 1px solid var(--border); display: inline-block; }
+.status-legend .sw.lvl-0 { background: #f2f2f4; }
+.status-legend .sw.lvl-1 { background: #c9c9c9; }
+.status-legend .sw.lvl-2 { background: #8f8f8f; }
+.status-legend .sw.lvl-3 { background: #2a2a2e; }
+.status-legend .sw.hatch { background: repeating-linear-gradient(45deg, #111 0 1.5px, #f2f2f4 1.5px 5px); }
+
+/* Готовность (Восстановление v0.8) */
+.readiness { gap: 10px; }
+.readiness-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; }
+.readiness-score { font-size: 4.2rem; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+.readiness-bar { height: 12px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.readiness-bar span { display: block; height: 100%; border-radius: inherit; background: var(--text); transition: width 0.6s var(--ease); }
+.readiness-bar.moderate span { opacity: 0.75; }
+.readiness-bar.low span { opacity: 0.5; }
+.readiness-bar.rest span { opacity: 0.32; }
+.readiness-bar.calibrating span { background: repeating-linear-gradient(45deg, var(--text) 0 6px, transparent 6px 10px); }
+.readiness-sub { font-size: 0.8rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin-top: 6px; }
+.factor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.factor { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: 16px; background: var(--surface-2); min-width: 0; }
+.factor-label { font-size: 0.78rem; color: var(--muted); }
+.factor b { font-size: 1.1rem; overflow-wrap: anywhere; }
+.factor-delta { font-size: 0.78rem; color: var(--muted); display: flex; gap: 4px; align-items: baseline; }
+.factor.better .factor-delta { color: var(--text); }
+.factor-arrow { font-weight: 800; color: var(--text); }
+.readiness-explain { font-size: 0.95rem; }
+.advice-card { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: 18px; border: 1px solid var(--border); background: var(--bg); }
+.advice-card b { font-size: 1.05rem; }
+.stepper { display: flex; align-items: center; gap: 8px; }
+.stepper .input { text-align: center; font-size: 1.2rem; font-weight: 700; }
+.stepper .round-btn { width: 44px; height: 44px; font-size: 1.4rem; }
+.link-btn { border: 0; background: none; padding: 0; font: inherit; color: var(--text); text-decoration: underline; cursor: pointer; }
+.chart.pickable, .chart .pickable { cursor: pointer; }
+.chart .dot.selected { fill: var(--bg); stroke: var(--text); stroke-width: 3; }
+.bar-chart .bar.selected { opacity: 1; fill: var(--text); stroke: var(--text); stroke-width: 2; }
+.bar-chart .bar:not(.selected) { transition: opacity 0.2s ease; }
+.chart-sub { font-size: 0.8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 4px; }
+.section-title { font-size: 1.3rem; font-weight: 800; margin-top: 8px; }
+.readiness-hint {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 18px; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); text-decoration: none;
+}
+.readiness-hint .grow { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.readiness-hint .grow span { color: var(--muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.readiness-hint-icon { width: 36px; height: 36px; border-radius: 50%; background: var(--surface-2); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.readiness-hint-icon svg { width: 20px; height: 20px; }
+.readiness-note {
+  display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-radius: 16px; background: var(--surface-2);
+  color: var(--text); text-decoration: none; font-size: 0.9rem;
+}
+.readiness-note svg { width: 20px; height: 20px; flex: none; }
+.multi-chart { margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.chart .axis.zero { stroke-dasharray: none; opacity: 0.8; }
+.line-legend { display: flex; gap: 16px; font-size: 0.8rem; color: var(--muted); }
+.line-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.line-legend svg { width: 28px; height: 6px; }
+.line-legend line { stroke: var(--text); stroke-width: 2.5; stroke-linecap: round; }

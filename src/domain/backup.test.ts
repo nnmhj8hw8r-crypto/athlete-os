@@ -21,6 +21,7 @@ function fullData(): BackupData {
     schedule: [{ ...drafts.schedule, id: 'sc1', ...meta }],
     testDefs: [{ ...drafts.testDefs, id: 'td1', ...meta }],
     testResults: [{ ...drafts.testResults, id: 'tr1', ...meta }],
+    checkins: [{ ...drafts.checkins, id: 'ci1', ...meta }],
     settings: [{ key: 'pendingSleepStart', value: '2026-10-20T20:30:00.000Z' }],
   };
 }
@@ -37,7 +38,7 @@ describe('parseBackup', () => {
     const r = parseBackup(JSON.stringify(backup));
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.total).toBe(16);
+      expect(r.total).toBe(17);
       expect(r.counts.meals).toBe(1);
       expect(r.backup.data).toEqual(backup.data);
     }
@@ -80,6 +81,12 @@ describe('parseBackup', () => {
       expect(r.backup.data.schedule).toEqual([]);
       expect(r.backup.data.testResults).toEqual([]);
     }
+  });
+
+  it('копия версии 3 (до чек-инов) импортируется: чек-инов нет', () => {
+    const r = parseBackup(JSON.stringify({ format: BACKUP_FORMAT, schemaVersion: 3, exportedAt: meta.createdAt, data: {} }));
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.backup.data.checkins).toEqual([]);
   });
 
   it('отклоняет не-JSON', () => {

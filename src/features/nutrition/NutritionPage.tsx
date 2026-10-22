@@ -13,6 +13,7 @@ import { useConfirmDelete } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
 import { clearParam, href, type Route } from '../../ui/router.ts';
 import { AddFlow, type AddStart } from './AddFlow.tsx';
+import { NutritionReadinessNote } from '../recovery/ReadinessHint.tsx';
 import { MealIcon } from './MealIcon.tsx';
 import { defaultMealType, MealEntryDialog } from './MealEntryDialog.tsx';
 import { NutritionStats } from './NutritionStats.tsx';
@@ -148,6 +149,7 @@ export function NutritionPage({ route }: { route: Route }) {
               Составьте личный план — появятся цели по калориям, БЖУ и воде с учётом веса и соревнований.
             </button>
           )}
+          <NutritionReadinessNote />
 
           {MEAL_TYPES.map((mt) => {
             const list = entries.filter((e) => e.mealType === mt);

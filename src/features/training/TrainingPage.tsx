@@ -25,6 +25,7 @@ import { MeasureTab } from './MeasureTab.tsx';
 import { ProgramDialog } from './ProgramDialog.tsx';
 import { draftOf, useActiveSession, useStartSession } from './useSession.ts';
 import { WeekTab } from './WeekTab.tsx';
+import { TrainingReadinessHint } from '../recovery/ReadinessHint.tsx';
 
 type Tab = 'week' | 'programs' | 'exercises' | 'journal' | 'measure';
 const TABS: { value: Tab; label: string }[] = [
@@ -58,6 +59,7 @@ export function TrainingPage({ route }: { route: Route }) {
       }
     >
       <ActiveBanner />
+      <TrainingReadinessHint />
       <Tabs compact label="Разделы тренировок" value={tab} onChange={(t) => navigate(`/training?tab=${t}`, true)} options={TABS} />
       <div key={tab} className="tab-anim">
         {tab === 'week' && <WeekTab onStartFree={() => setStartOpen(true)} />}

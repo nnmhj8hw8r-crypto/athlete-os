@@ -9,7 +9,13 @@ import { Card, EmptyState, Page, RowActions } from '../../ui/components.tsx';
 import { useConfirmDelete, useFeedback } from '../../ui/feedback.tsx';
 import { clearParam, type Route } from '../../ui/router.ts';
 import { SleepChart, SleepStrip, WellbeingChart } from './RecoveryCharts.tsx';
+import { CheckinDialog } from './CheckinDialog.tsx';
+import { MuscleFatigueCard } from './MuscleFatigueCard.tsx';
+import { ReadinessCard } from './ReadinessCard.tsx';
+import { ReadinessHistory } from './ReadinessHistory.tsx';
+import { ReadinessSettingsDialog } from './ReadinessSettingsDialog.tsx';
 import { SleepDialog } from './SleepDialog.tsx';
+import { useReadiness } from './useReadiness.ts';
 
 export const PENDING_SLEEP_KEY = 'pendingSleepStart';
 
@@ -22,12 +28,19 @@ export function RecoveryPage({ route }: { route: Route }) {
   const pending = usePendingSleep();
   const { notify } = useFeedback();
   const confirmDelete = useConfirmDelete();
+  const readiness = useReadiness();
+  const [checkinOpen, setCheckinOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [dialog, setDialog] = useState<{ entry?: SleepEntry; initial?: { bedtime?: string; wakeTime?: string }; fromPending?: boolean } | null>(null);
 
   useEffect(() => {
     if (route.params.get('add') === '1') {
       setDialog({});
       clearParam(route, 'add');
+    }
+    if (route.params.get('checkin') === '1') {
+      setCheckinOpen(true);
+      clearParam(route, 'checkin');
     }
   }, [route]);
 
@@ -37,7 +50,18 @@ export function RecoveryPage({ route }: { route: Route }) {
   }
 
   return (
-    <Page title="Восстановление" subtitle="Сон и субъективное самочувствие">
+    <Page title="Восстановление" subtitle="Готовность к тренировке, мышцы и сон">
+      {readiness ? (
+        <>
+          <ReadinessCard state={readiness} onCheckin={() => setCheckinOpen(true)} onSettings={() => setSettingsOpen(true)} />
+          <MuscleFatigueCard state={readiness} />
+          <ReadinessHistory state={readiness} />
+        </>
+      ) : (
+        <p className="muted">Загрузка…</p>
+      )}
+
+      <h2 className="section-title">Сон</h2>
       <SleepHero pending={pending} onStart={startSleep} onWake={() => pending && setDialog({ initial: { bedtime: pending, wakeTime: new Date().toISOString() }, fromPending: true })} onManual={() => setDialog({})} />
 
       {entries && entries.length > 0 && (
@@ -82,6 +106,10 @@ export function RecoveryPage({ route }: { route: Route }) {
         )}
       </section>
 
+      {checkinOpen && readiness && (
+        <CheckinDialog date={readiness.today} existing={readiness.todayCheckin} onClose={() => setCheckinOpen(false)} onSaved={() => window.scrollTo({ top: 0 })} />
+      )}
+      {settingsOpen && readiness && <ReadinessSettingsDialog config={readiness.config} onClose={() => setSettingsOpen(false)} />}
       {dialog && (
         <SleepDialog
           entry={dialog.entry}
