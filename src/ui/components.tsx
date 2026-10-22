@@ -230,6 +230,19 @@ export function Tabs<T extends string>({
   );
 }
 
+/** Переключатель периода графика («2 нед / 30 дн / 90 дн»), компактные «таблетки». */
+export function Segmented<T extends string>({ value, onChange, options, label }: { value: T; onChange: (v: T) => void; options: { value: T; label: string }[]; label: string }) {
+  return (
+    <div className="segmented" role="radiogroup" aria-label={label}>
+      {options.map((o) => (
+        <button key={o.value} type="button" role="radio" aria-checked={value === o.value} className={value === o.value ? 'on' : ''} onClick={() => onChange(o.value)}>
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function RatingInput({
   label,
   value,

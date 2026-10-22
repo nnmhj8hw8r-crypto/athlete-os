@@ -8,6 +8,7 @@ import { formatDateKey, formatDateTime, formatDuration, formatTime, toDateKey } 
 import { Card, EmptyState, Page, RowActions } from '../../ui/components.tsx';
 import { useConfirmDelete, useFeedback } from '../../ui/feedback.tsx';
 import { clearParam, type Route } from '../../ui/router.ts';
+import { SleepChart, SleepStrip, WellbeingChart } from './RecoveryCharts.tsx';
 import { SleepDialog } from './SleepDialog.tsx';
 
 export const PENDING_SLEEP_KEY = 'pendingSleepStart';
@@ -37,36 +38,16 @@ export function RecoveryPage({ route }: { route: Route }) {
 
   return (
     <Page title="Восстановление" subtitle="Сон и субъективное самочувствие">
-      {pending ? (
-        <Card title="Сон начат">
-          <p>
-            Отмечено: <b>{formatDateTime(pending)}</b>
-          </p>
-          <div className="row">
-            <button
-              type="button"
-              className="btn primary"
-              onClick={() => setDialog({ initial: { bedtime: pending, wakeTime: new Date().toISOString() }, fromPending: true })}
-            >
-              Проснулся
-            </button>
-            <button type="button" className="btn" onClick={() => deleteSetting(PENDING_SLEEP_KEY)}>
-              Отменить отметку
-            </button>
-          </div>
-        </Card>
-      ) : (
-        <div className="row">
-          <button type="button" className="btn primary" onClick={startSleep}>
-            Лёг спать
-          </button>
-          <button type="button" className="btn" onClick={() => setDialog({})}>
-            Ввести время вручную
-          </button>
-        </div>
-      )}
+      <SleepHero pending={pending} onStart={startSleep} onWake={() => pending && setDialog({ initial: { bedtime: pending, wakeTime: new Date().toISOString() }, fromPending: true })} onManual={() => setDialog({})} />
 
-      {entries && entries.length > 0 && <Trends entries={entries} />}
+      {entries && entries.length > 0 && (
+        <>
+          <SleepStrip />
+          <SleepChart />
+          <WellbeingChart />
+          <Trends entries={entries} />
+        </>
+      )}
 
       <section className="section">
         <h2>История</h2>
@@ -110,6 +91,48 @@ export function RecoveryPage({ route }: { route: Route }) {
         />
       )}
     </Page>
+  );
+}
+
+/** Крупная карточка сна: «Лёг спать» или идущий сон с таймером и «Проснулся». */
+function SleepHero({ pending, onStart, onWake, onManual }: { pending: string | undefined; onStart: () => void; onWake: () => void; onManual: () => void }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!pending) return;
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, [pending]);
+  if (pending) {
+    const min = Math.max(0, Math.round((now - Date.parse(pending)) / 60_000));
+    return (
+      <section className="hero-card">
+        <span className="hero-label">Сон идёт</span>
+        <b className="hero-value num">{formatDuration(min)}</b>
+        <span className="muted">с {formatDateTime(pending)}</span>
+        <div className="row">
+          <button type="button" className="btn primary big" onClick={onWake}>
+            Проснулся
+          </button>
+          <button type="button" className="btn ghost" onClick={() => deleteSetting(PENDING_SLEEP_KEY)}>
+            Отменить отметку
+          </button>
+        </div>
+      </section>
+    );
+  }
+  return (
+    <section className="hero-card">
+      <span className="hero-label">Сон</span>
+      <span className="muted">Отметьте отход ко сну, утром — пробуждение и самочувствие.</span>
+      <div className="row">
+        <button type="button" className="btn primary big" onClick={onStart}>
+          Лёг спать
+        </button>
+        <button type="button" className="btn ghost" onClick={onManual}>
+          Ввести вручную
+        </button>
+      </div>
+    </section>
   );
 }
 

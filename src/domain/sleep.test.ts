@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { sleepEntrySchema } from './schemas.ts';
-import { estimatedSleepMinutes, recoveryAverages, timeInBedMinutes } from './sleep.ts';
+import type { SleepEntry } from './schemas.ts';
+import { estimatedSleepMinutes, recoveryAverages, sleepDays, timeInBedMinutes } from './sleep.ts';
 
 const bed = '2026-10-20T20:30:00.000Z'; // 23:30 МСК
 const wake = '2026-10-21T04:00:00.000Z'; // 07:00 МСК
@@ -74,5 +75,23 @@ describe('recoveryAverages', () => {
 
   it('для пустого списка возвращает null', () => {
     expect(recoveryAverages([]).wellbeing).toBeNull();
+  });
+});
+
+describe('sleepDays', () => {
+  const e = (id: string, bed: string, wake: string, wellbeing?: number): SleepEntry => ({
+    id, bedtime: bed, wakeTime: wake, wellbeing, createdAt: wake, updatedAt: wake,
+  });
+  it('ряд по дням с пропусками, дневной сон суммируется, оценка — из последней записи', () => {
+    const list = [
+      e('a', '2026-10-19T20:00:00.000Z', '2026-10-20T04:00:00.000Z', 3),
+      e('b', '2026-10-20T10:00:00.000Z', '2026-10-20T11:00:00.000Z', 4),
+      e('c', '2026-10-21T21:00:00.000Z', '2026-10-22T04:30:00.000Z'),
+    ];
+    const days = sleepDays(list, '2026-10-20', '2026-10-23');
+    expect(days.map((d) => d.date)).toEqual(['2026-10-20', '2026-10-21', '2026-10-22', '2026-10-23']);
+    expect(days[0]).toMatchObject({ inBedMin: 540, wellbeing: 4 });
+    expect(days[1]).toMatchObject({ inBedMin: null, wellbeing: null });
+    expect(days[2]).toMatchObject({ inBedMin: 450, wellbeing: null });
   });
 });

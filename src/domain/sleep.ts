@@ -2,6 +2,7 @@
 // промежуток между отметками и оценка сна по самооценкам пользователя.
 // Фазы и циклы сна по двум отметкам времени не вычисляются.
 import type { SleepEntry } from './schemas.ts';
+import { addDays, toDateKey } from './time.ts';
 
 /** Минуты между отходом ко сну и пробуждением (время в постели) или null при некорректных данных. */
 export function timeInBedMinutes(bedtime: string, wakeTime: string): number | null {
@@ -63,4 +64,43 @@ export function recoveryAverages(entries: readonly SleepEntry[]): RecoveryAverag
     soreness: pick('soreness'),
     motivation: pick('motivation'),
   };
+}
+
+export interface SleepDay {
+  /** День пробуждения по Москве, YYYY-MM-DD. */
+  date: string;
+  /** Время в постели, мин; null — записи за день нет. */
+  inBedMin: number | null;
+  wellbeing: number | null;
+  fatigue: number | null;
+  soreness: number | null;
+  motivation: number | null;
+}
+
+/**
+ * Ряд по дням за период [from, to] (включительно) — для графиков. Если за день несколько записей
+ * (дневной сон), время в постели суммируется, а оценки берутся из последней записи дня.
+ */
+export function sleepDays(entries: readonly SleepEntry[], from: string, to: string): SleepDay[] {
+  const byDay = new Map<string, SleepEntry[]>();
+  for (const e of entries) {
+    const d = toDateKey(e.wakeTime);
+    if (d < from || d > to) continue;
+    byDay.set(d, [...(byDay.get(d) ?? []), e]);
+  }
+  const out: SleepDay[] = [];
+  for (let d = from; d <= to; d = addDays(d, 1)) {
+    const list = (byDay.get(d) ?? []).sort((a, b) => a.wakeTime.localeCompare(b.wakeTime));
+    const last = list[list.length - 1];
+    const minutes = list.flatMap((e) => timeInBedMinutes(e.bedtime, e.wakeTime) ?? []);
+    out.push({
+      date: d,
+      inBedMin: minutes.length ? minutes.reduce((a, b) => a + b, 0) : null,
+      wellbeing: last?.wellbeing ?? null,
+      fatigue: last?.fatigue ?? null,
+      soreness: last?.soreness ?? null,
+      motivation: last?.motivation ?? null,
+    });
+  }
+  return out;
 }
