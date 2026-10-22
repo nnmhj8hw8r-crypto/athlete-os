@@ -20,4 +20,13 @@ export const Icons: Record<string, ReactElement> = {
   plus: P('M12 5v14M5 12h14'),
   chevronLeft: P('M15 6l-6 6 6 6'),
   chevronRight: P('M9 6l6 6-6 6'),
+  chevronDown: P('M6 9l6 6 6-6'),
+  barcode: P('M3 5v14M7 5v14M11 5v14M14 5v14M18 5v14M21 5v14'),
+  pen: P('M4 20h4L20 8l-4-4L4 16zM13 7l4 4'),
+  bolt: P('M13 2L4 14h7l-1 8 9-12h-7z'),
+  book: P('M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zM20 4h-5a3 3 0 0 0-3 3'),
+  history: P('M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2'),
+  search: P('M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM21 21l-5-5'),
+  drop: P('M12 3c3 4 6 7.5 6 11a6 6 0 0 1-12 0c0-3.5 3-7 6-11z'),
+  scale: P('M5 7h14l-2 13H7zM9 7a3 3 0 0 1 6 0M12 11v3'),
 };

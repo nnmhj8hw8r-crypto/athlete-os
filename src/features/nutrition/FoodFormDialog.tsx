@@ -1,7 +1,9 @@
 // Создание и редактирование продукта вручную.
 import { useState, type FormEvent } from 'react';
+import { EXTRA_KEYS, type Extra, type ExtraKey } from '../../../shared/catalog.ts';
 import { saveEntity } from '../../data/repo.ts';
 import { emptyToUndefined, numberToField, parseDecimal, type FieldErrors } from '../../domain/form.ts';
+import { cleanExtra, NUTRIENT_META } from '../../domain/nutrients.ts';
 import { hasEnergyMismatch, kcalFromMacros } from '../../domain/nutrition.ts';
 import type { Food } from '../../domain/schemas.ts';
 import { Field, FormError, Modal } from '../../ui/components.tsx';
@@ -14,6 +16,7 @@ export interface FoodPrefill {
   basis?: Food['basis'];
   /** Известные из внешней базы значения; недостающие пользователь дописывает с упаковки. */
   per100?: Partial<Food['per100']>;
+  extra?: Extra;
   sourceNote?: string;
   sourceUrl?: string;
 }
@@ -39,6 +42,10 @@ export function FoodFormDialog({ food, prefill, onClose, onSaved }: Props) {
     sourceUrl: food?.sourceUrl ?? prefill?.sourceUrl ?? '',
     barcode: food?.barcode ?? prefill?.barcode ?? '',
   });
+  const initialExtra = food?.extra ?? prefill?.extra;
+  const [extra, setExtra] = useState<Record<ExtraKey, string>>(
+    () => Object.fromEntries(EXTRA_KEYS.map((k) => [k, numberToField(initialExtra?.[k])])) as Record<ExtraKey, string>,
+  );
   const [errors, setErrors] = useState<FieldErrors>({});
   const [saving, setSaving] = useState(false);
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF((s) => ({ ...s, [k]: e.target.value }));
@@ -64,6 +71,7 @@ export function FoodFormDialog({ food, prefill, onClose, onSaved }: Props) {
           brand: emptyToUndefined(f.brand),
           basis: f.basis as Food['basis'],
           per100: per100 as Food['per100'],
+          extra: cleanExtra(Object.fromEntries(EXTRA_KEYS.map((k) => [k, parseDecimal(extra[k])]))),
           source: food?.source ?? 'manual',
           sourceNote: emptyToUndefined(f.sourceNote),
           sourceUrl: emptyToUndefined(f.sourceUrl),
@@ -147,6 +155,20 @@ export function FoodFormDialog({ food, prefill, onClose, onSaved }: Props) {
             Проверьте, нет ли опечатки. Сохранить можно и так.
           </p>
         )}
+        <details className="details" open={Boolean(initialExtra)}>
+          <summary>Дополнительно с этикетки: сахар, клетчатка, жиры, соль…</summary>
+          <p className="small muted">Заполняйте только то, что указано на упаковке. Пустое поле — «нет данных», а не ноль.</p>
+          <div className="fields-2">
+            {EXTRA_KEYS.filter((k) => k !== 'water').map((k) => (
+              <Field key={k} label={`${NUTRIENT_META[k].label}, ${NUTRIENT_META[k].unit}`} optional error={errors[`extra.${k}`]}>
+                {(p) => (
+                  <input {...p} className="input" inputMode="decimal" autoComplete="off" value={extra[k]} onChange={(e) => setExtra((s) => ({ ...s, [k]: e.target.value }))} />
+                )}
+              </Field>
+            ))}
+          </div>
+          <p className="small muted">Если на упаковке указана соль, натрий ≈ соль (г) × 400 мг.</p>
+        </details>
         <Field label="Источник сведений" optional hint="Например: упаковка, сайт производителя" error={errors.sourceNote}>
           {(p) => <input {...p} className="input" value={f.sourceNote} onChange={set('sourceNote')} />}
         </Field>

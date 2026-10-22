@@ -1,0 +1,10 @@
+off-ru.json — производная база данных из Open Food Facts (https://world.openfoodfacts.org).
+
+Содержит товары с отметкой страны «Россия», штрихкодом и полной пищевой ценностью на 100 г/мл.
+Собрано скриптом scripts/build-off-russia.py из ежедневной выгрузки en.openfoodfacts.org.products.csv.gz.
+
+Лицензия: Open Database License (ODbL) 1.0 — https://opendatacommons.org/licenses/odbl/1-0/
+Содержимое отдельных записей: Database Contents License (DbCL) 1.0 — https://opendatacommons.org/licenses/dbcl/1-0/
+
+Данные вносят участники Open Food Facts; полнота и точность не гарантируются.
+Сверяйте цифры с упаковкой.

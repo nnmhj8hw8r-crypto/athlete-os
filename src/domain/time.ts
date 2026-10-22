@@ -81,6 +81,13 @@ export function addDays(key: DateKey, days: number): DateKey {
   return `${pad(dt.getUTCFullYear(), 4)}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`;
 }
 
+/** Понедельник недели, в которую входит календарный день. */
+export function weekStart(key: DateKey): DateKey {
+  const [y, m, d] = key.split('-').map(Number) as [number, number, number];
+  const dow = (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7;
+  return addDays(key, -dow);
+}
+
 /** Разница в календарных днях: b − a. */
 export function diffDays(a: DateKey, b: DateKey): number {
   const toUtc = (k: DateKey) => {

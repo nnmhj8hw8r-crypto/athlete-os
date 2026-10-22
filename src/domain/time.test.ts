@@ -1,4 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import { weekStart } from './time.ts';
+
+describe('weekStart', () => {
+  it('понедельник недели', () => {
+    expect(weekStart('2026-10-22')).toBe('2026-10-19'); // четверг
+    expect(weekStart('2026-10-19')).toBe('2026-10-19');
+    expect(weekStart('2026-10-25')).toBe('2026-10-19'); // воскресенье
+  });
+});
 import {
   addDays,
   diffDays,

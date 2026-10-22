@@ -4,7 +4,38 @@
 // Поиск по названию из браузера недоступен: поисковые адреса OFF блокируют сторонние сайты (CORS),
 // поэтому здесь только штрихкод.
 import { z } from 'zod';
-import type { CatalogErrorResponse, CatalogFood, CatalogResponse } from '../../../shared/catalog.ts';
+import type { CatalogErrorResponse, CatalogFood, CatalogResponse, Extra, ExtraKey } from '../../../shared/catalog.ts';
+import { cleanExtra } from '../../domain/nutrients.ts';
+
+/** Колонки OFF (на 100 г, в граммах) → расширенные нутриенты приложения и множитель к их единицам. */
+const OFF_EXTRA: Record<string, [ExtraKey, number]> = {
+  sugars_100g: ['sugars', 1],
+  'added-sugars_100g': ['addedSugars', 1],
+  fiber_100g: ['fiber', 1],
+  'saturated-fat_100g': ['satFat', 1],
+  'monounsaturated-fat_100g': ['monoFat', 1],
+  'polyunsaturated-fat_100g': ['polyFat', 1],
+  'trans-fat_100g': ['transFat', 1],
+  'omega-3-fat_100g': ['omega3', 1],
+  cholesterol_100g: ['cholesterol', 1000],
+  sodium_100g: ['sodium', 1000],
+  potassium_100g: ['potassium', 1000],
+  calcium_100g: ['calcium', 1000],
+  iron_100g: ['iron', 1000],
+  magnesium_100g: ['magnesium', 1000],
+  'vitamin-d_100g': ['vitD', 1_000_000],
+};
+
+export function offExtra(nutriments: unknown): Extra | undefined {
+  if (typeof nutriments !== 'object' || nutriments === null) return undefined;
+  const n = nutriments as Record<string, unknown>;
+  const out: Partial<Record<ExtraKey, number>> = {};
+  for (const [col, [key, mult]] of Object.entries(OFF_EXTRA)) {
+    const v = n[col];
+    if (typeof v === 'number' && Number.isFinite(v) && v >= 0) out[key] = Math.round(v * mult * 1000) / 1000;
+  }
+  return cleanExtra(out);
+}
 
 export const OFF_BASE_URL = 'https://world.openfoodfacts.org';
 const FIELDS = 'code,product_name,product_name_ru,brands,product_quantity_unit,quantity,nutriments';
@@ -25,6 +56,7 @@ const offProductSchema = z.object({
       fat_100g: optNum,
       carbohydrates_100g: optNum,
     })
+    .loose()
     .optional()
     .catch(undefined),
 });
@@ -85,6 +117,7 @@ export function normalizeOffProduct(raw: unknown, ean: string): { food: CatalogF
       brand,
       basis,
       per100: { kcal: round1(kcal), protein: round1(protein), fat: round1(fat), carbs: round1(carbs) },
+      extra: offExtra(n),
       url,
       license: 'ODbL',
       barcode: code,

@@ -96,7 +96,10 @@ with gzip.open(SRC, 'rt', encoding='utf-8', errors='replace', newline='') as f:
         stats['kept'] += 1
 
 out.sort(key=lambda x: x[1].lower())
+import datetime
 payload = {
+    'generated': datetime.date.today().isoformat(),
+    'stats': stats,
     'source': 'Open Food Facts — https://world.openfoodfacts.org',
     'license': 'ODbL 1.0 (база), DbCL 1.0 (содержимое)',
     'fields': ['code', 'name', 'brand', 'basis(0=g,1=ml)', 'kcal', 'protein', 'fat', 'carbs', 'extra'],

@@ -36,7 +36,8 @@ export default defineConfig({
       workbox: {
         // Кэшируется только оболочка приложения. Ответы /api не кэшируются Service Worker'ом:
         // найденные продукты сохраняются пользователем в IndexedDB осознанно.
-        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        // data/*.json — офлайн-база российских товаров (~0,4 МБ), нужна для поиска без интернета.
+        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}', 'data/*.json'],
         navigateFallback: 'index.html',
         navigateFallbackDenylist: [/^\/api\//],
         runtimeCaching: [{ urlPattern: /\/api\//, handler: 'NetworkOnly' }],

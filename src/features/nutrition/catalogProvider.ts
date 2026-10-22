@@ -9,6 +9,7 @@ import {
   type CatalogProviderId,
   type CatalogResponse,
 } from '../../../shared/catalog.ts';
+import { loadOfflineBase, offlineToCatalogFood } from '../../data/offlineBase.ts';
 import { offLookupBarcode } from './openFoodFacts.ts';
 
 export type ProviderStatus =
@@ -145,4 +146,29 @@ export function chainBarcodeProviders(primary: FoodCatalogProvider, fallback: Fo
   };
 }
 
-export const barcodeCatalog = chainBarcodeProviders(perekProvider, offProvider);
+/** Офлайн-база российских товаров (выгрузка OFF): работает без интернета. */
+export const offlineProvider: FoodCatalogProvider = {
+  id: 'offline',
+  label: 'Офлайн-база (Open Food Facts)',
+  attribution: offProvider.attribution,
+
+  async checkAvailability() {
+    return (await loadOfflineBase())
+      ? { available: true }
+      : { available: false, reason: 'server_unavailable', message: 'Офлайн-база товаров ещё не загружена.' };
+  },
+
+  async searchByName() {
+    return { status: 'error', code: 'disabled', message: 'Поиск по названию в офлайн-базе выполняется в общем поиске.' };
+  },
+
+  async lookupBarcode(ean) {
+    const p = (await loadOfflineBase())?.byCode.get(ean);
+    return p
+      ? { status: 'ok', exact: true, foods: [offlineToCatalogFood(p)] }
+      : { status: 'error', code: 'not_found', message: 'В офлайн-базе такого штрихкода нет.' };
+  },
+};
+
+/** Штрихкод: офлайн-база → Perek.us (если есть сервер) → Open Food Facts онлайн. */
+export const barcodeCatalog = chainBarcodeProviders(offlineProvider, chainBarcodeProviders(perekProvider, offProvider));

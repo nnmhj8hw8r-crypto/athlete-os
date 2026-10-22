@@ -83,17 +83,19 @@ export function FormError({ errors }: { errors: Record<string, string> }) {
 }
 
 interface ModalProps {
-  title: string;
+  title: ReactNode;
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  /** 'full' — на телефоне на весь экран (окно добавления еды), 'sheet' — нижняя шторка по содержимому. */
+  size?: 'default' | 'full' | 'sheet';
 }
 
 /**
  * Модальное окно на нативном <dialog>: фокус удерживается внутри, Esc закрывает.
  * Компонент монтируется только когда окно открыто.
  */
-export function Modal({ title, onClose, children, footer }: ModalProps) {
+export function Modal({ title, onClose, children, footer, size = 'default' }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
   const onCloseRef = useRef(onClose);
@@ -115,7 +117,7 @@ export function Modal({ title, onClose, children, footer }: ModalProps) {
   }, []);
 
   return (
-    <dialog ref={ref} className="modal" aria-labelledby={titleId}>
+    <dialog ref={ref} className={size === 'default' ? 'modal' : `modal ${size}`} aria-labelledby={titleId}>
       <div className="modal-inner">
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>

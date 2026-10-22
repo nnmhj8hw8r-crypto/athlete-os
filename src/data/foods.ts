@@ -24,6 +24,7 @@ export async function saveCatalogFood(cf: CatalogFood): Promise<Food> {
       brand: cf.brand,
       basis: cf.basis,
       per100: cf.per100,
+      extra: cf.extra,
       source: cf.provider,
       sourceNote: SOURCE_NOTE[cf.provider],
       sourceUrl: cf.url,

@@ -1,9 +1,11 @@
-// Рецепт: блюдо из нескольких продуктов каталога. Сохраняется как продукт (на 100 г готового блюда).
+// Рецепт: блюдо из нескольких продуктов (свой каталог или встроенная база). Сохраняется как продукт
+// на 100 г готового блюда. Типовое блюдо можно открыть здесь же и «изменить под себя».
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState, type FormEvent } from 'react';
+import { useMemo, useState, type FormEvent } from 'react';
 import { db } from '../../data/db.ts';
-import { filterFoods } from '../../data/foods.ts';
+import { REFERENCE_FOODS } from '../../data/referenceFoods.ts';
 import { saveEntity } from '../../data/repo.ts';
+import { createSearchIndex, searchIndex } from '../../domain/foodSearch.ts';
 import { numberToField, parseDecimal, type FieldErrors } from '../../domain/form.ts';
 import { computeRecipe, unitLabel } from '../../domain/nutrition.ts';
 import type { Food, RecipeIngredient } from '../../domain/schemas.ts';
@@ -18,20 +20,49 @@ interface Row {
   amount: string;
 }
 
+export interface RecipePrefill {
+  name: string;
+  ingredients: RecipeIngredient[];
+  totalWeightG?: number;
+}
+
+type Candidate = Omit<RecipeIngredient, 'amount'> & { key: string; base: boolean };
+
 let rowKey = 0;
 
-export function RecipeDialog({ food, onClose }: { food?: Food; onClose: () => void }) {
+const REF_INGREDIENTS: Candidate[] = REFERENCE_FOODS.filter((r) => r.kind === 'food').map((r) => ({
+  key: r.id,
+  foodId: r.id,
+  name: r.name,
+  basis: 'g',
+  per100: r.per100,
+  extra: r.extra,
+  base: true,
+}));
+
+export function RecipeDialog({
+  food,
+  prefill,
+  onClose,
+  onSaved,
+}: {
+  food?: Food;
+  prefill?: RecipePrefill;
+  onClose: () => void;
+  onSaved?: (food: Food) => void;
+}) {
   const { notify } = useFeedback();
   const foods = useLiveQuery(() => db.foods.toArray(), []);
-  const [name, setName] = useState(food?.name ?? '');
+  const source = food?.recipe ?? (prefill ? { ingredients: prefill.ingredients, totalWeightG: prefill.totalWeightG } : undefined);
+  const [name, setName] = useState(food?.name ?? prefill?.name ?? '');
   const [rows, setRows] = useState<Row[]>(
-    (food?.recipe?.ingredients ?? []).map((i) => ({
+    (source?.ingredients ?? []).map((i) => ({
       key: String(rowKey++),
-      ingredient: { foodId: i.foodId, name: i.name, basis: i.basis, per100: i.per100 },
+      ingredient: { foodId: i.foodId, name: i.name, basis: i.basis, per100: i.per100, extra: i.extra },
       amount: numberToField(i.amount),
     })),
   );
-  const [totalWeight, setTotalWeight] = useState(numberToField(food?.recipe?.totalWeightG));
+  const [totalWeight, setTotalWeight] = useState(numberToField(source?.totalWeightG));
   const [query, setQuery] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
 
@@ -40,10 +71,19 @@ export function RecipeDialog({ food, onClose }: { food?: Food; onClose: () => vo
   const total = parseDecimal(totalWeight);
   const result = rows.length && validAmounts ? computeRecipe(ingredients, total) : null;
 
-  const candidates = foods && query.trim() ? filterFoods(foods, query).filter((f) => f.id !== food?.id).slice(0, 8) : [];
+  const index = useMemo(() => {
+    const own: Candidate[] = (foods ?? [])
+      .filter((f) => f.id !== food?.id)
+      .map((f) => ({ key: f.id, foodId: f.id, name: f.name, basis: f.basis, per100: f.per100, extra: f.extra, base: false }));
+    return createSearchIndex([...own, ...REF_INGREDIENTS], (c) => ({ name: c.name }));
+  }, [foods, food?.id]);
+  const candidates = query.trim()
+    ? searchIndex(index, query, { limit: 10, boost: (c) => (c.base ? 0 : 15) }).map((h) => h.item)
+    : [];
 
-  function add(f: Food) {
-    setRows((r) => [...r, { key: String(rowKey++), ingredient: { foodId: f.id, name: f.name, basis: f.basis, per100: f.per100 }, amount: '' }]);
+  function add(c: Candidate) {
+    const ingredient = { foodId: c.foodId, name: c.name, basis: c.basis, per100: c.per100, extra: c.extra };
+    setRows((r) => [...r, { key: String(rowKey++), ingredient, amount: '' }]);
     setQuery('');
   }
 
@@ -68,6 +108,7 @@ export function RecipeDialog({ food, onClose }: { food?: Food; onClose: () => vo
         name,
         basis: 'g',
         per100: computed.per100,
+        extra: computed.extra,
         source: 'recipe',
         sourceNote: 'Рассчитано по ингредиентам',
         recipe: { ingredients, totalWeightG: total },
@@ -79,7 +120,8 @@ export function RecipeDialog({ food, onClose }: { food?: Food; onClose: () => vo
       return;
     }
     notify(food ? 'Рецепт обновлён' : 'Рецепт сохранён в каталог');
-    onClose();
+    if (onSaved) onSaved(r.value);
+    else onClose();
   }
 
   return (
@@ -105,7 +147,7 @@ export function RecipeDialog({ food, onClose }: { food?: Food; onClose: () => vo
 
         <div className="section">
           <h3>Ингредиенты</h3>
-          {rows.length === 0 && <p className="muted small">Найдите продукты своего каталога и добавьте их в рецепт.</p>}
+          {rows.length === 0 && <p className="muted small">Найдите продукты (свои или из встроенной базы) и добавьте их в рецепт.</p>}
           {rows.map((r, idx) => (
             <div key={r.key} className="row" style={{ flexWrap: 'nowrap' }}>
               <span className="grow" style={{ flex: 1, minWidth: 0 }}>
@@ -132,16 +174,17 @@ export function RecipeDialog({ food, onClose }: { food?: Food; onClose: () => vo
             Найти ингредиент
           </label>
           <input id="ing-q" className="input" placeholder="Добавить ингредиент: начните вводить название" value={query} onChange={(e) => setQuery(e.target.value)} />
-          {query.trim() && candidates.length === 0 && <p className="small muted">В каталоге нет подходящих продуктов. Сначала добавьте продукт в каталог.</p>}
+          {query.trim() && candidates.length === 0 && <p className="small muted">Ничего не найдено. Сначала добавьте продукт в каталог.</p>}
           {candidates.length > 0 && (
             <ul className="list">
               {candidates.map((f) => (
-                <li key={f.id}>
+                <li key={f.key}>
                   <button type="button" className="list-item selectable" onClick={() => add(f)}>
                     <span className="grow">
                       <span className="title">{f.name}</span>
                       <span className="meta">
                         {Math.round(f.per100.kcal)} ккал / 100 {unitLabel(f.basis)}
+                        {f.base ? ' · база' : ' · мой продукт'}
                       </span>
                     </span>
                     {Icons.plus}
