@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { APP_VERSION } from '../../appVersion.ts';
 import { APP_TIME_ZONE, DEFAULT_WEIGHT_CATEGORY } from '../../config.ts';
-import { Card, Page } from '../../ui/components.tsx';
+import type { ChartLineStyle } from '../../domain/chartPath.ts';
+import { setChartStyle, useChartStyle } from '../../ui/chartStyle.ts';
+import { Card, Page, Segmented } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { href } from '../../ui/router.ts';
 import { perekProvider, type ProviderStatus } from '../nutrition/catalogProvider.ts';
@@ -20,6 +22,7 @@ async function readStorage(): Promise<StorageInfo> {
 
 export function SettingsPage() {
   const { notify } = useFeedback();
+  const chartStyle = useChartStyle();
   const [storage, setStorage] = useState<StorageInfo | null>(null);
   const [perek, setPerek] = useState<ProviderStatus | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
@@ -88,6 +91,22 @@ export function SettingsPage() {
         <p className="small muted">Платные API ИИ не используются. Сводку для ИИ вы копируете вручную.</p>
       </Card>
 
+      <Card title="Вид">
+        <div className="field">
+          <span className="label">Линии графиков</span>
+          <Segmented<ChartLineStyle>
+            label="Линии графиков"
+            value={chartStyle}
+            onChange={(v) => void setChartStyle(v)}
+            options={[
+              { value: 'smooth', label: 'Плавные' },
+              { value: 'straight', label: 'Прямые' },
+            ]}
+          />
+        </div>
+        <p className="small muted">Тема — светлая или тёмная — следует настройке телефона.</p>
+      </Card>
+
       <Card title="Источники данных и лицензии">
         <ul className="sources">
           <li>
@@ -96,7 +115,22 @@ export function SettingsPage() {
             <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.ru" target="_blank" rel="noreferrer">
               CC BY-SA 4.0
             </a>
-            . Изменения: переименованы файлы, убраны фиксированные размеры. Схема мышц — собственный рисунок приложения.
+            . Изменения: переименованы файлы, убраны фиксированные размеры.
+          </li>
+          <li>
+            Анатомическая схема мышц — Termininja (
+            <a href="https://commons.wikimedia.org/wiki/File:Muscular_system.svg" target="_blank" rel="noreferrer">
+              Wikimedia Commons
+            </a>
+            ) через проект{' '}
+            <a href="https://github.com/wger-project/wger" target="_blank" rel="noreferrer">
+              wger
+            </a>
+            ,{' '}
+            <a href="https://creativecommons.org/licenses/by-sa/3.0/deed.ru" target="_blank" rel="noreferrer">
+              CC BY-SA 3.0
+            </a>
+            . Изменён цвет слоёв мышц. Пиктограммы кардио — собственные рисунки приложения.
           </li>
           <li>
             Встроенный справочник продуктов — <a href="https://fdc.nal.usda.gov" target="_blank" rel="noreferrer">USDA FoodData Central</a>{' '}

@@ -40,8 +40,13 @@ export function SleepStrip() {
   );
 }
 
-export function SleepChart({ initial = '14' }: { initial?: Period }) {
-  const [period, setPeriod] = useState<Period>(initial);
+export function SleepChart({ initial = '14', period: controlled, onPeriodChange }: { initial?: Period; period?: Period; onPeriodChange?: (p: Period) => void }) {
+  const [local, setLocal] = useState<Period>(initial);
+  const period = controlled ?? local;
+  const setPeriod = (p: Period) => {
+    setLocal(p);
+    onPeriodChange?.(p);
+  };
   const days = useDays(period);
   return (
     <div className="chart-card">
@@ -61,8 +66,13 @@ export function SleepChart({ initial = '14' }: { initial?: Period }) {
   );
 }
 
-export function WellbeingChart({ initial = '14' }: { initial?: Period }) {
-  const [period, setPeriod] = useState<Period>(initial);
+export function WellbeingChart({ initial = '14', period: controlled, onPeriodChange }: { initial?: Period; period?: Period; onPeriodChange?: (p: Period) => void }) {
+  const [local, setLocal] = useState<Period>(initial);
+  const period = controlled ?? local;
+  const setPeriod = (p: Period) => {
+    setLocal(p);
+    onPeriodChange?.(p);
+  };
   const [field, setField] = useState<RatingField>('wellbeing');
   const days = useDays(period);
   const points = (days ?? []).flatMap((d) => {

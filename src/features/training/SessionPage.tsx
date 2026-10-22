@@ -21,7 +21,8 @@ import {
 } from '../../domain/training.ts';
 import { formatDateTime, fromLocalInputValue, toLocalInputValue } from '../../domain/time.ts';
 import { EXERCISE_IMAGE_LICENSE_URL, exerciseImageCredit, exerciseImagePath } from '../../domain/exerciseImages.ts';
-import { BodyFigure, ExercisePose } from '../../ui/BodyFigure.tsx';
+import { BodyFigure, ExercisePose, MuscleMapCredit } from '../../ui/BodyFigure.tsx';
+import { hasPictogram, Pictogram } from '../../ui/Pictograms.tsx';
 import { EmptyState, Field, FormError, Modal, TopBar } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
@@ -488,7 +489,13 @@ function ExerciseView({ session, index, ex, setExercises, rest }: ExerciseViewPr
           {exerciseImagePath(ex.exerciseId) && (
             <ExercisePose src={exerciseImagePath(ex.exerciseId)!} credit={exerciseImageCredit(ex.exerciseId)} licenseUrl={EXERCISE_IMAGE_LICENSE_URL} />
           )}
+          {!exerciseImagePath(ex.exerciseId) && cat && hasPictogram(ex.exerciseId) && (
+            <ExercisePose credit="Пиктограмма приложения">
+              <Pictogram exerciseId={ex.exerciseId} primary={cat.muscles} secondary={cat.musclesSecondary} />
+            </ExercisePose>
+          )}
           {cat && <BodyFigure primary={cat.muscles} secondary={cat.musclesSecondary} view="both" className="ex-hero-figure" />}
+          {cat && <MuscleMapCredit />}
           <TechniqueNotes exerciseId={ex.exerciseId} />
           <p className="small muted">Видео техники появится в следующих версиях.</p>
         </Modal>

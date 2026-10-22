@@ -37,7 +37,7 @@ export function WaterCard({ date, plan, defaultMl, onOpenPlan }: { date: string;
   return (
     <section className="card water-card" aria-label="Вода">
       <div className="meal-head static">
-        <span className="meal-icon water-icon" aria-hidden="true">
+        <span className="meal-ico water" aria-hidden="true">
           {Icons.drop}
         </span>
         <span className="grow">

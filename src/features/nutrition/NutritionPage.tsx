@@ -12,7 +12,8 @@ import { Page, Tabs } from '../../ui/components.tsx';
 import { useConfirmDelete } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
 import { clearParam, href, type Route } from '../../ui/router.ts';
-import { AddFlow, MEAL_ICON, type AddStart } from './AddFlow.tsx';
+import { AddFlow, type AddStart } from './AddFlow.tsx';
+import { MealIcon } from './MealIcon.tsx';
 import { defaultMealType, MealEntryDialog } from './MealEntryDialog.tsx';
 import { NutritionStats } from './NutritionStats.tsx';
 import { PlanDialog } from './PlanDialog.tsx';
@@ -154,9 +155,7 @@ export function NutritionPage({ route }: { route: Route }) {
             return (
               <section key={mt} className="card meal-card" aria-label={MEAL_TYPE_LABEL[mt]}>
                 <button type="button" className="meal-head" onClick={() => setFlow({ meal: mt, start: 'sheet' })} aria-label={`${MEAL_TYPE_LABEL[mt]}: добавить еду`}>
-                  <span className="meal-icon" aria-hidden="true">
-                    {MEAL_ICON[mt]}
-                  </span>
+                  <MealIcon meal={mt} />
                   <span className="grow">
                     <span className="meal-name">{MEAL_TYPE_LABEL[mt]}</span>
                     {list.length > 0 && (

@@ -197,6 +197,15 @@ Perek.us (если сервер с ключом доступен) → Open Food 
 - Рисунки упражнений: `src/domain/exerciseImages.ts` → `public/exercises/<слаг>.svg`, `ExerciseIcon`/`ExercisePose`
   в `src/ui/BodyFigure.tsx`.
 
+### Интерфейс v0.7
+
+- Нижняя панель — `src/App.tsx` (`MAIN` + `MORE`), стили в начале `src/styles.css` («Нижняя панель»).
+- Схема мышц — `src/ui/BodyFigure.tsx` (слои `public/muscles/main|secondary/muscle-N.svg`, соответствие
+  наших мышц номерам слоёв — `LAYERS`); пиктограммы кардио — `src/ui/Pictograms.tsx`.
+- Графики: `src/domain/chartPath.ts` (путь линии), `src/ui/chartStyle.ts` (настройка вида).
+- Главная: `src/domain/dashboard.ts` (виджеты), `src/features/dashboard/DashboardPage.tsx` (виджеты и окно
+  настройки); карточки с графиками принимают `period`/`onPeriodChange`.
+
 ### Окна (v0.4.1)
 
 `src/ui/modalStack.ts` — блокировка прокрутки страницы под окном и запись окна в истории браузера (жест

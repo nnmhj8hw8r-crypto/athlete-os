@@ -77,10 +77,25 @@ export function NextCompetitionCard({ link = false }: { link?: boolean }) {
   );
 }
 
-type WPeriod = '30' | '90' | 'all';
+export type WPeriod = '30' | '90' | 'all';
 
-export function WeightChartCard({ initial = '30', link = false }: { initial?: WPeriod; link?: boolean }) {
-  const [period, setPeriod] = useState<WPeriod>(initial);
+export function WeightChartCard({
+  initial = '30',
+  link = false,
+  period: controlled,
+  onPeriodChange,
+}: {
+  initial?: WPeriod;
+  link?: boolean;
+  period?: WPeriod;
+  onPeriodChange?: (p: WPeriod) => void;
+}) {
+  const [local, setLocal] = useState<WPeriod>(initial);
+  const period = controlled ?? local;
+  const setPeriod = (p: WPeriod) => {
+    setLocal(p);
+    onPeriodChange?.(p);
+  };
   const weights = useLiveQuery(() => db.bodyWeights.toArray(), []);
   const competitions = useLiveQuery(() => db.competitions.toArray(), []);
   if (weights === undefined || competitions === undefined) return null;

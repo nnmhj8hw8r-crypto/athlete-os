@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react';
+import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { DashboardPage } from './features/dashboard/DashboardPage.tsx';
 import { AiSummaryPage } from './features/more/AiSummaryPage.tsx';
 import { BackupPage } from './features/more/BackupPage.tsx';
@@ -19,14 +19,14 @@ import { FeedbackProvider } from './ui/feedback.tsx';
 import { Icons } from './ui/icons.tsx';
 import { href, useRoute, type Route } from './ui/router.ts';
 
-const NAV: { path: string; label: string; short?: string; icon: ReactNode }[] = [
+const MAIN: { path: string; label: string; icon: ReactNode }[] = [
   { path: '/', label: 'Главная', icon: Icons.home },
   { path: '/nutrition', label: 'Питание', icon: Icons.food },
   { path: '/training', label: 'Тренировки', icon: Icons.training },
-  { path: '/recovery', label: 'Восстановление', short: 'Восстан.', icon: Icons.recovery },
+  { path: '/recovery', label: 'Восстановление', icon: Icons.recovery },
   { path: '/season', label: 'Сезон', icon: Icons.season },
-  { path: '/more', label: 'Ещё', icon: Icons.more },
 ];
+const MORE = { path: '/more', label: 'Ещё', icon: Icons.more };
 
 const PAGES: Record<string, (r: Route) => ReactNode> = {
   '/': () => <DashboardPage />,
@@ -64,19 +64,20 @@ export function App() {
       <div className="app">
         <nav className="nav" aria-label="Основные разделы">
           <span className="nav-brand">Personal Athlete OS</span>
-          {NAV.map((n) => (
-            <a key={n.path} href={href(n.path)} aria-label={n.label} aria-current={isActive(n.path, route.path) ? 'page' : undefined}>
-              {n.icon}
-              {n.short ? (
-                <>
-                  <span className="nav-full">{n.label}</span>
-                  <span className="nav-short">{n.short}</span>
-                </>
-              ) : (
-                <span>{n.label}</span>
-              )}
-            </a>
-          ))}
+          {/* На телефоне — плавающая «таблетка» с разделами и отдельная круглая кнопка «Ещё». */}
+          <div className="nav-pill" style={{ '--nav-i': Math.max(0, MAIN.findIndex((n) => isActive(n.path, route.path))) } as CSSProperties}>
+            <span className={`nav-indicator${MAIN.some((n) => isActive(n.path, route.path)) ? '' : ' hidden'}`} aria-hidden="true" />
+            {MAIN.map((n) => (
+              <a key={n.path} href={href(n.path)} aria-label={n.label} aria-current={isActive(n.path, route.path) ? 'page' : undefined}>
+                {n.icon}
+                <span className="nav-label">{n.label}</span>
+              </a>
+            ))}
+          </div>
+          <a className="nav-more" href={href(MORE.path)} aria-label={MORE.label} aria-current={isActive(MORE.path, route.path) ? 'page' : undefined}>
+            {MORE.icon}
+            <span className="nav-label">{MORE.label}</span>
+          </a>
         </nav>
         <main className="main">
           {render ? (

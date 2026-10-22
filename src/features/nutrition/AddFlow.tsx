@@ -2,6 +2,7 @@
 // тап по приёму пищи → шторка (поиск, штрихкод, ручной ввод, быстрый ввод, «Моя сохранённая еда»)
 // → экран «Завтрак ▾» с вкладками «История / Поиск еды / Рецепты» → порция.
 import { useState } from 'react';
+import { MealIcon } from './MealIcon.tsx';
 import type { Extra } from '../../../shared/catalog.ts';
 import { saveMealEntry, saveQuickEntry, type PortionFood } from '../../data/meals.ts';
 import { REFERENCE_FOODS } from '../../data/referenceFoods.ts';
@@ -18,7 +19,6 @@ import { DISH_OPTIONS, foodOption, historyOption, KIND_LABEL, useFoodData, useFo
 import { MealEntryDialog } from './MealEntryDialog.tsx';
 import { RecipeDialog, type RecipePrefill } from './RecipeDialog.tsx';
 
-export const MEAL_ICON: Record<MealType, string> = { breakfast: '🌅', lunch: '☀️', dinner: '🌇', snack: '🌙' };
 
 const r1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString('ru-RU');
 
@@ -100,7 +100,15 @@ export function AddFlow({ mealType, date, start = 'sheet', targetKcal, onClose }
   switch (step.kind) {
     case 'sheet':
       return (
-        <Modal title={`${MEAL_ICON[meal]} ${MEAL_TYPE_LABEL[meal]}`} onClose={onClose} size="sheet">
+        <Modal
+          title={
+            <span className="title-with-icon">
+              <MealIcon meal={meal} size="sm" /> {MEAL_TYPE_LABEL[meal]}
+            </span>
+          }
+          onClose={onClose}
+          size="sheet"
+        >
           <button type="button" className="search-fake" onClick={() => toScreen('search')}>
             {Icons.search}
             <span>Поиск продуктов, блюд и рецептов</span>
@@ -371,7 +379,7 @@ function HistoryTab({
       {thisMeal.length > 0 && (
         <section className="stack">
           <p className="search-group">
-            {MEAL_ICON[meal]} Недавно в «{MEAL_TYPE_LABEL[meal]}»
+            Недавно в «{MEAL_TYPE_LABEL[meal]}»
           </p>
           <ul className="food-list">{meals.map(row)}</ul>
           {thisMeal.length > 5 && (

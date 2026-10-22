@@ -1,0 +1,12 @@
+Анатомические рисунки в этой папке (front.svg, back.svg и слои мышц main/, secondary/)
+взяты из проекта wger (https://github.com/wger-project/wger, wger/core/static/images/muscles),
+который основан на рисунках Wikimedia Commons:
+  https://commons.wikimedia.org/wiki/File:Muscular_system.svg
+  https://commons.wikimedia.org/wiki/File:Muscular_system-back.svg
+Автор исходных рисунков: Termininja (Wikimedia Commons).
+
+Лицензия: Creative Commons Attribution-ShareAlike 3.0 Unported (CC BY-SA 3.0)
+https://creativecommons.org/licenses/by-sa/3.0/
+
+Изменения: цвет слоёв мышц изменён (основные — #e0332f, вспомогательные — #f39a96).
+Изменённые файлы распространяются на тех же условиях CC BY-SA 3.0.

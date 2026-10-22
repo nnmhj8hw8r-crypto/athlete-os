@@ -19,7 +19,8 @@ import {
 } from '../../domain/schemas.ts';
 import { EXERCISE_GROUP_LABEL, EXERCISE_METRIC_LABEL, WORKOUT_FORMAT_LABEL, WORKOUT_TYPE_LABEL, weekdaysLabel } from '../../domain/training.ts';
 import { plural } from '../../domain/time.ts';
-import { BodyFigure, ExerciseIcon } from '../../ui/BodyFigure.tsx';
+import { BodyFigure, ExerciseIcon, MuscleMapCredit } from '../../ui/BodyFigure.tsx';
+import { hasPictogram, Pictogram } from '../../ui/Pictograms.tsx';
 import { Field, FormError, Modal } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
@@ -41,7 +42,8 @@ export function useCatalogMap(): Map<string, CatalogExercise> {
 /** Иконка упражнения: рисунок позы Everkinetic, если он есть, иначе схема мышц (нет в каталоге — серая). */
 export function ExIcon({ ex, size }: { ex: CatalogExercise | undefined; size?: 'sm' | 'md' | 'lg' }) {
   const src = ex ? exerciseImagePath(ex.id) : null;
-  return <ExerciseIcon key={src ?? 'figure'} muscles={ex?.muscles ?? []} secondary={ex?.musclesSecondary} size={size} src={src} />;
+  const pictogram = ex && !src && hasPictogram(ex.id) ? <Pictogram exerciseId={ex.id} primary={ex.muscles} secondary={ex.musclesSecondary} /> : undefined;
+  return <ExerciseIcon key={src ?? 'figure'} muscles={ex?.muscles ?? []} secondary={ex?.musclesSecondary} size={size} src={src} pictogram={pictogram} />;
 }
 
 export const MUSCLE_LABEL: Record<Muscle, string> = {
@@ -329,6 +331,7 @@ export function ExerciseFormDialog({ exercise, initialName = '', onClose, onSave
           <span className="hint">Нажмите один раз — основная (красная), второй — вспомогательная, третий — убрать.</span>
           <div className="muscle-editor">
             <BodyFigure primary={primary} secondary={secondary} view="both" className="muscle-preview" />
+            <MuscleMapCredit />
             <div className="chips">
               {MUSCLES.map((m) => (
                 <button
