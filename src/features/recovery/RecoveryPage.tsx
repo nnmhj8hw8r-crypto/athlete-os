@@ -1,12 +1,12 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { db } from '../../data/db.ts';
-import { deleteEntity, deleteSetting, setSetting } from '../../data/repo.ts';
+import { deleteEntity } from '../../data/repo.ts';
 import type { SleepEntry } from '../../domain/schemas.ts';
 import { estimatedSleepMinutes, RATING_FIELDS, RATING_META, recoveryAverages, timeInBedMinutes } from '../../domain/sleep.ts';
-import { formatDateKey, formatDateTime, formatDuration, formatTime, toDateKey } from '../../domain/time.ts';
+import { formatDateKey, formatDuration, formatTime, toDateKey } from '../../domain/time.ts';
 import { Card, EmptyState, Page, RowActions } from '../../ui/components.tsx';
-import { useConfirmDelete, useFeedback } from '../../ui/feedback.tsx';
+import { useConfirmDelete } from '../../ui/feedback.tsx';
 import { clearParam, type Route } from '../../ui/router.ts';
 import { SleepChart, SleepStrip, WellbeingChart } from './RecoveryCharts.tsx';
 import { CheckinDialog } from './CheckinDialog.tsx';
@@ -15,23 +15,17 @@ import { ReadinessCard } from './ReadinessCard.tsx';
 import { ReadinessHistory } from './ReadinessHistory.tsx';
 import { ReadinessSettingsDialog } from './ReadinessSettingsDialog.tsx';
 import { SleepDialog } from './SleepDialog.tsx';
+import { SleepHero } from './SleepHero.tsx';
 import { useReadiness } from './useReadiness.ts';
-
-export const PENDING_SLEEP_KEY = 'pendingSleepStart';
-
-export function usePendingSleep(): string | undefined {
-  return useLiveQuery(async () => (await db.settings.get(PENDING_SLEEP_KEY))?.value as string | undefined, []);
-}
 
 export function RecoveryPage({ route }: { route: Route }) {
   const entries = useLiveQuery(() => db.sleep.orderBy('wakeTime').reverse().toArray(), []);
-  const pending = usePendingSleep();
-  const { notify } = useFeedback();
+
   const confirmDelete = useConfirmDelete();
   const readiness = useReadiness();
   const [checkinOpen, setCheckinOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [dialog, setDialog] = useState<{ entry?: SleepEntry; initial?: { bedtime?: string; wakeTime?: string }; fromPending?: boolean } | null>(null);
+  const [dialog, setDialog] = useState<{ entry?: SleepEntry } | null>(null);
 
   useEffect(() => {
     if (route.params.get('add') === '1') {
@@ -43,11 +37,6 @@ export function RecoveryPage({ route }: { route: Route }) {
       clearParam(route, 'checkin');
     }
   }, [route]);
-
-  async function startSleep() {
-    await setSetting(PENDING_SLEEP_KEY, new Date().toISOString());
-    notify('Время отхода ко сну отмечено. Утром нажмите «Проснулся».');
-  }
 
   return (
     <Page title="Восстановление" subtitle="Готовность к тренировке, мышцы и сон">
@@ -62,7 +51,7 @@ export function RecoveryPage({ route }: { route: Route }) {
       )}
 
       <h2 className="section-title">Сон</h2>
-      <SleepHero pending={pending} onStart={startSleep} onWake={() => pending && setDialog({ initial: { bedtime: pending, wakeTime: new Date().toISOString() }, fromPending: true })} onManual={() => setDialog({})} />
+      <SleepHero />
 
       {entries && entries.length > 0 && (
         <>
@@ -111,56 +100,9 @@ export function RecoveryPage({ route }: { route: Route }) {
       )}
       {settingsOpen && readiness && <ReadinessSettingsDialog config={readiness.config} onClose={() => setSettingsOpen(false)} />}
       {dialog && (
-        <SleepDialog
-          entry={dialog.entry}
-          initial={dialog.initial}
-          onClose={() => setDialog(null)}
-          onSaved={dialog.fromPending ? () => void deleteSetting(PENDING_SLEEP_KEY) : undefined}
-        />
+        <SleepDialog entry={dialog.entry} onClose={() => setDialog(null)} />
       )}
     </Page>
-  );
-}
-
-/** Крупная карточка сна: «Лёг спать» или идущий сон с таймером и «Проснулся». */
-function SleepHero({ pending, onStart, onWake, onManual }: { pending: string | undefined; onStart: () => void; onWake: () => void; onManual: () => void }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!pending) return;
-    const t = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(t);
-  }, [pending]);
-  if (pending) {
-    const min = Math.max(0, Math.round((now - Date.parse(pending)) / 60_000));
-    return (
-      <section className="hero-card">
-        <span className="hero-label">Сон идёт</span>
-        <b className="hero-value num">{formatDuration(min)}</b>
-        <span className="muted">с {formatDateTime(pending)}</span>
-        <div className="row">
-          <button type="button" className="btn primary big" onClick={onWake}>
-            Проснулся
-          </button>
-          <button type="button" className="btn ghost" onClick={() => deleteSetting(PENDING_SLEEP_KEY)}>
-            Отменить отметку
-          </button>
-        </div>
-      </section>
-    );
-  }
-  return (
-    <section className="hero-card">
-      <span className="hero-label">Сон</span>
-      <span className="muted">Отметьте отход ко сну, утром — пробуждение и самочувствие.</span>
-      <div className="row">
-        <button type="button" className="btn primary big" onClick={onStart}>
-          Лёг спать
-        </button>
-        <button type="button" className="btn ghost" onClick={onManual}>
-          Ввести вручную
-        </button>
-      </div>
-    </section>
   );
 }
 

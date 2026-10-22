@@ -17,3 +17,6 @@ export const SPORT_LABEL: Record<Sport, string> = {
   judo: 'Дзюдо',
   sambo: 'Самбо',
 };
+
+/** Форма отзывов демо-версии (Tally). Ответы разбираются вручную для улучшения приложения. */
+export const FEEDBACK_FORM_URL = 'https://tally.so/r/q54zM2';

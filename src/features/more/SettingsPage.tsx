@@ -6,7 +6,12 @@ import { setChartStyle, useChartStyle } from '../../ui/chartStyle.ts';
 import { Card, Page, Segmented } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { href } from '../../ui/router.ts';
+import { normalizeLayout } from '../../domain/dashboard.ts';
+import { LEVEL_LABEL, revealFullWidgets, SCENARIO_META, type AppLevel } from '../../domain/profile.ts';
+import { db } from '../../data/db.ts';
+import { setSetting } from '../../data/repo.ts';
 import { perekProvider, type ProviderStatus } from '../nutrition/catalogProvider.ts';
+import { saveProfile, useProfile } from '../onboarding/useProfile.ts';
 
 interface StorageInfo {
   supported: boolean;
@@ -23,6 +28,7 @@ async function readStorage(): Promise<StorageInfo> {
 export function SettingsPage() {
   const { notify } = useFeedback();
   const chartStyle = useChartStyle();
+  const profile = useProfile();
   const [storage, setStorage] = useState<StorageInfo | null>(null);
   const [perek, setPerek] = useState<ProviderStatus | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
@@ -47,8 +53,32 @@ export function SettingsPage() {
     setStorage(await readStorage());
   }
 
+  async function setLevel(level: AppLevel) {
+    if (!profile || profile.level === level) return;
+    await saveProfile({ ...profile, level });
+    if (level === 'full') await setSetting('dashboardLayout', revealFullWidgets(normalizeLayout((await db.settings.get('dashboardLayout'))?.value)));
+    notify(level === 'full' ? 'Полный режим: открыт «Сезон» и карточки соревнований на главной' : 'Простой режим: разделы для соревнований скрыты, данные сохранены');
+  }
+
   return (
     <Page title="Настройки и о приложении" subtitle={<a href={href('/more')}>← Ещё</a>}>
+      {profile && (
+        <Card title="Режим приложения">
+          <Segmented<AppLevel>
+            label="Режим приложения"
+            value={profile.level}
+            onChange={(v) => void setLevel(v)}
+            options={(['basic', 'full'] as const).map((v) => ({ value: v, label: LEVEL_LABEL[v] }))}
+          />
+          <p className="small muted">
+            Простой — дневник питания со сканером, сон, восстановление и тренировки. Полный — всё для соревнующегося спортсмена: раздел «Сезон»
+            (старты, выход в вес, нагрузка по неделям) и его карточки на главной. Записи при смене режима не удаляются.
+          </p>
+          <p className="small">
+            Сценарий: <b>{SCENARIO_META[profile.scenario].title}</b> · <a href={href('/welcome')}>пройти приветствие снова</a>
+          </p>
+        </Card>
+      )}
       <Card title="Параметры">
         <ul className="list small">
           <li>Часовой пояс дат и времени: {APP_TIME_ZONE}</li>

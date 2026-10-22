@@ -6,6 +6,9 @@ import { MorePage } from './features/more/MorePage.tsx';
 import { SettingsPage } from './features/more/SettingsPage.tsx';
 import { SourcesPage } from './features/more/SourcesPage.tsx';
 import { SupplementsPage } from './features/more/SupplementsPage.tsx';
+import { OnboardingPage, useFirstRun } from './features/onboarding/OnboardingPage.tsx';
+import { useLevel } from './features/onboarding/useProfile.ts';
+import { FULL_ONLY_PATHS } from './domain/profile.ts';
 import { FoodsPage } from './features/nutrition/FoodsPage.tsx';
 import { NutritionPage } from './features/nutrition/NutritionPage.tsx';
 import { RecoveryPage } from './features/recovery/RecoveryPage.tsx';
@@ -53,11 +56,24 @@ function isActive(navPath: string, current: string) {
 
 export function App() {
   const route = useRoute();
+  const level = useLevel();
+  const firstRun = useFirstRun();
+  const main = MAIN.filter((n) => level === 'full' || !FULL_ONLY_PATHS.includes(n.path));
   const render = PAGES[route.path];
 
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [route.path]);
+
+  // Первый запуск: пока не ясно, новый ли пользователь, ничего не показываем, чтобы не мигала главная.
+  if (firstRun === undefined) return null;
+  if (firstRun || route.path === '/welcome') {
+    return (
+      <FeedbackProvider>
+        <OnboardingPage replay={!firstRun} />
+      </FeedbackProvider>
+    );
+  }
 
   return (
     <FeedbackProvider>
@@ -65,9 +81,12 @@ export function App() {
         <nav className="nav" aria-label="Основные разделы">
           <span className="nav-brand">Personal Athlete OS</span>
           {/* На телефоне — плавающая «таблетка» с разделами и отдельная круглая кнопка «Ещё». */}
-          <div className="nav-pill" style={{ '--nav-i': Math.max(0, MAIN.findIndex((n) => isActive(n.path, route.path))) } as CSSProperties}>
-            <span className={`nav-indicator${MAIN.some((n) => isActive(n.path, route.path)) ? '' : ' hidden'}`} aria-hidden="true" />
-            {MAIN.map((n) => (
+          <div
+            className="nav-pill"
+            style={{ '--nav-i': Math.max(0, main.findIndex((n) => isActive(n.path, route.path))), '--nav-n': main.length } as CSSProperties}
+          >
+            <span className={`nav-indicator${main.some((n) => isActive(n.path, route.path)) ? '' : ' hidden'}`} aria-hidden="true" />
+            {main.map((n) => (
               <a key={n.path} href={href(n.path)} aria-label={n.label} aria-current={isActive(n.path, route.path) ? 'page' : undefined}>
                 {n.icon}
                 <span className="nav-label">{n.label}</span>

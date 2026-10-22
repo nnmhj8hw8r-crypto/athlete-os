@@ -48,7 +48,7 @@
   - `aiAdapter.ts` — только интерфейс будущего адаптера ИИ (реализаций нет).
 - `src/data/` — доступ к хранилищу: `db.ts` (схема Dexie), `repo.ts` (сохранение с проверкой,
   удаление, настройки, экспорт/импорт), `foods.ts` (каталог продуктов).
-- `src/features/` — разделы: `dashboard`, `nutrition`, `training`, `recovery`, `season`, `more`.
+- `src/features/` — разделы: `dashboard`, `nutrition`, `training`, `recovery`, `season`, `more`, `onboarding`.
 - `src/ui/` — `components.tsx` (страница, карточка, поле, диалог на `<dialog>`, вкладки, шкала 1–5),
   `feedback.tsx` (уведомления и подтверждения), `LineChart.tsx` (SVG-график), `router.ts`, `icons.tsx`.
 - `shared/` — `catalog.ts` (контракт ответа каталога + схемы), `ean.ts`.
@@ -206,6 +206,15 @@ Perek.us (если сервер с ключом доступен) → Open Food 
   `CheckinDialog`, `MuscleStatusMap` (серые уровни, штриховка, нажатие по маске слоя), `MuscleFatigueCard`,
   `ReadinessHistory`, `ReadinessSettingsDialog`, `ReadinessHint` (Тренировки, Питание);
   `src/features/season/WeeklyReadinessCard.tsx`, `src/ui/MultiLineChart.tsx`.
+
+### Приветствие и режимы v0.9
+
+- Логика (с тестами): `src/domain/profile.ts` — сценарии, режимы, вопросы, `layoutForProfile`,
+  `normalizeProfile`, адрес формы отзыва; `src/domain/dashboard.ts` — новые виджеты, `swapWidgets`.
+- Интерфейс: `src/features/onboarding/OnboardingPage.tsx` (`useFirstRun` — новый/старый пользователь),
+  `useProfile.ts` (`useProfile`, `useLevel`, `saveProfile`, `useFeedbackUrl`); `App.tsx` показывает
+  приветствие вместо приложения и скрывает пути `FULL_ONLY_PATHS` в простом режиме.
+- Карточка сна — `src/features/recovery/SleepHero.tsx` (общая для «Восстановления» и главной).
 
 ### Интерфейс v0.7
 
