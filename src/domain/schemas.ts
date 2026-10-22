@@ -1,7 +1,7 @@
 // Модели данных и их проверка. Одни и те же схемы используются для форм,
 // для записи в IndexedDB и для проверки импортируемой резервной копии.
 import { z } from 'zod';
-import { nutrientBasisSchema, per100Schema } from '../../shared/catalog.ts';
+import { extraSchema, nutrientBasisSchema, per100Schema } from '../../shared/catalog.ts';
 import { isValidDateKey } from './time.ts';
 
 // Русские сообщения по умолчанию для проверок, у которых не задан собственный текст.
@@ -22,16 +22,19 @@ const rating = (min: number, max: number) =>
   z.number().int('Нужно целое число').min(min, `От ${min} до ${max}`).max(max, `От ${min} до ${max}`);
 const timestamps = { createdAt: isoDateTime, updatedAt: isoDateTime };
 
-export { nutrientBasisSchema, per100Schema };
+export { extraSchema, nutrientBasisSchema, per100Schema };
 
 // ---------- Питание ----------
 
 export const recipeIngredientSchema = z.object({
+  /** id продукта каталога или встроенной базы (usda:…, off:…). Вода — 'water'. */
   foodId: id,
   name: text(200),
   basis: nutrientBasisSchema,
   amount: z.number().finite().positive('Количество должно быть больше нуля').max(100_000),
   per100: per100Schema,
+  /** Расширенные нутриенты на 100 г/мл (с версии данных 2). */
+  extra: extraSchema.optional(),
 });
 export type RecipeIngredient = z.infer<typeof recipeIngredientSchema>;
 
@@ -51,6 +54,8 @@ export const foodSchema = z
     brand: optionalText(200),
     basis: nutrientBasisSchema,
     per100: per100Schema,
+    /** Расширенные нутриенты на 100 г/мл; отсутствующее поле = нет данных (с версии данных 2). */
+    extra: extraSchema.optional(),
     source: foodSourceSchema,
     /** Откуда взяты цифры: «упаковка», «сайт производителя» и т. п. */
     sourceNote: optionalText(500),
@@ -91,11 +96,25 @@ export const mealEntrySchema = z.object({
   per100: per100Schema,
   /** Рассчитанные калории и БЖУ порции. Не пересчитываются при изменении продукта. */
   nutrients: per100Schema,
+  /** Снимок расширенных нутриентов на 100 г/мл и их значения для порции (с версии данных 2). */
+  extra100: extraSchema.optional(),
+  extra: extraSchema.optional(),
+  /** Продукт встроенной или офлайн-базы (usda:…, dish:…, off:…), если он не сохранён в каталог. */
+  refId: optionalText(100),
   sourceUrl: url.optional(),
   notes: optionalText(1000),
   ...timestamps,
 });
 export type MealEntry = z.infer<typeof mealEntrySchema>;
+
+/** Выпитая вода (с версии данных 2). Отдельно от еды: вода в продуктах считается в нутриентах. */
+export const waterEntrySchema = z.object({
+  id,
+  date: dateKey,
+  ml: z.number().int('Целое число миллилитров').min(1, 'Больше нуля').max(5000, 'Не больше 5 литров за раз'),
+  ...timestamps,
+});
+export type WaterEntry = z.infer<typeof waterEntrySchema>;
 
 // ---------- Тренировки ----------
 
@@ -299,6 +318,7 @@ export const ENTITY_SCHEMAS = {
   bodyWeights: bodyWeightSchema,
   supplements: supplementSchema,
   sources: knowledgeSourceSchema,
+  water: waterEntrySchema,
   settings: settingSchema,
 } as const;
 
@@ -318,5 +338,6 @@ export const TABLE_LABELS: Record<TableName, string> = {
   bodyWeights: 'Масса тела',
   supplements: 'Добавки',
   sources: 'Источники',
+  water: 'Вода',
   settings: 'Настройки',
 };

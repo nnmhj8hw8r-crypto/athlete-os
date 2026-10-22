@@ -18,6 +18,7 @@ import type {
   SleepEntry,
   Supplement,
   TableName,
+  WaterEntry,
   Workout,
   WorkoutTemplate,
 } from '../domain/schemas.ts';
@@ -33,13 +34,14 @@ export type AthleteDb = Dexie & {
   bodyWeights: EntityTable<BodyWeight, 'id'>;
   supplements: EntityTable<Supplement, 'id'>;
   sources: EntityTable<KnowledgeSource, 'id'>;
+  water: EntityTable<WaterEntry, 'id'>;
   settings: EntityTable<Setting, 'key'>;
 };
 
 export const DB_NAME = 'personal-athlete-os';
 
 /** Индексы таблиц версии 1. Первое поле — первичный ключ. */
-const SCHEMA_V1: Record<TableName, string> = {
+const SCHEMA_V1: Record<Exclude<TableName, 'water'>, string> = {
   foods: 'id, name, barcode, source, externalId, updatedAt',
   meals: 'id, date, foodId',
   workouts: 'id, startAt, type, templateId',
@@ -57,6 +59,9 @@ export function openDb(name = DB_NAME): AthleteDb {
   const db = new Dexie(name) as AthleteDb;
   // Последняя объявленная версия должна совпадать с DATA_SCHEMA_VERSION (проверяется тестом).
   db.version(1).stores(SCHEMA_V1);
+  // Версия 2: таблица выпитой воды; у продуктов и записей питания появились необязательные
+  // расширенные нутриенты (extra) — старые записи остаются корректными без преобразования.
+  db.version(2).stores({ water: 'id, date' });
   return db;
 }
 

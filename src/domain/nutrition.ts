@@ -1,5 +1,5 @@
 // Расчёт калорий и БЖУ. Только обычная арифметика, без внешних сервисов.
-import type { NutrientBasis, Per100 } from '../../shared/catalog.ts';
+import { EXTRA_KEYS, type Extra, type NutrientBasis, type Per100 } from '../../shared/catalog.ts';
 import type { MealType, RecipeIngredient } from './schemas.ts';
 
 export const ZERO_NUTRIENTS: Per100 = { kcal: 0, protein: 0, fat: 0, carbs: 0 };
@@ -76,8 +76,30 @@ export function hasEnergyMismatch(n: Per100): boolean {
 }
 
 export type RecipeResult =
-  | { ok: true; per100: Per100; totalWeightG: number; totals: Per100 }
+  | { ok: true; per100: Per100; totalWeightG: number; totals: Per100; extra?: Extra }
   | { ok: false; error: string };
+
+/**
+ * Расширенные нутриенты рецепта на 100 г: нутриент указывается, только если он известен
+ * для всех ингредиентов — иначе сумма была бы занижена.
+ */
+function recipeExtra(ingredients: readonly RecipeIngredient[], k: number): Extra | undefined {
+  const out: Extra = {};
+  for (const key of EXTRA_KEYS) {
+    let sum = 0;
+    let all = true;
+    for (const i of ingredients) {
+      const v = i.extra?.[key];
+      if (v === undefined) {
+        all = false;
+        break;
+      }
+      sum += (v * i.amount) / 100;
+    }
+    if (all) out[key] = round2(sum * k);
+  }
+  return Object.keys(out).length ? out : undefined;
+}
 
 /**
  * Пищевая ценность рецепта на 100 г готового блюда.
@@ -109,6 +131,7 @@ export function computeRecipe(ingredients: readonly RecipeIngredient[], totalWei
       fat: round2(totals.fat * k),
       carbs: round2(totals.carbs * k),
     },
+    extra: recipeExtra(ingredients, k),
   };
 }
 

@@ -1,32 +1,92 @@
 import { describe, expect, it } from 'vitest';
 import { REFERENCE_FOODS } from '../data/referenceFoods.ts';
-import { matchesQuery, rankByQuery, searchWords } from './foodSearch.ts';
+import { createSearchIndex, editDistance, matchesQuery, rankByQuery, searchIndex, searchWords } from './foodSearch.ts';
+import { stemRu } from './russianStemmer.ts';
 
-describe('поиск продуктов по названию', () => {
-  it('слова в любом порядке, без учёта регистра и ё', () => {
-    const w = searchWords('Греческий  ЙОГУРТ');
-    expect(matchesQuery('Йогурт греческий, натуральный', w)).toBe(true);
-    expect(matchesQuery('Свёкла, сырая', searchWords('свекла'))).toBe(true);
-  });
-
-  it('слово запроса — начало слова в названии, а не любая подстрока', () => {
-    expect(matchesQuery('Йогурт греческий', searchWords('греч йог'))).toBe(true);
-    expect(matchesQuery('Барбарис', searchWords('рис'))).toBe(false);
-  });
-
-  it('пустой запрос подходит ко всему', () => {
-    expect(matchesQuery('что угодно', searchWords('  '))).toBe(true);
-  });
-
-  it('выше то, что начинается с запроса', () => {
-    const items = ['Масло сливочное', 'Сливки жирные', 'Сливочный сыр'];
-    expect(rankByQuery(items, 'слив', (s) => s)[0]).toBe('Сливки жирные');
+describe('стеммер русского языка', () => {
+  it.each([
+    ['картошка', 'картошк'],
+    ['картофель', 'картофел'],
+    ['картофельное', 'картофельн'],
+    ['гречневая', 'гречнев'],
+    ['яйца', 'яйц'],
+    ['котлеты', 'котлет'],
+    ['варёная', 'варен'],
+  ])('%s → %s', (word, stem) => {
+    expect(stemRu(word)).toBe(stem);
   });
 });
 
-describe('встроенный справочник USDA', () => {
-  it('корректные значения на 100 г', () => {
-    expect(REFERENCE_FOODS.length).toBeGreaterThan(100);
+describe('расстояние с опечатками', () => {
+  it('замена, вставка, перестановка', () => {
+    expect(editDistance('гречка', 'гречко')).toBe(1);
+    expect(editDistance('творог', 'тврог')).toBe(1);
+    expect(editDistance('кефир', 'кфеир')).toBe(1);
+    expect(editDistance('рис', 'мясо', 2)).toBe(3);
+  });
+});
+
+const index = createSearchIndex(REFERENCE_FOODS, (f) => ({ name: f.name, aliases: f.aliases }));
+const top = (q: string, n = 5) => searchIndex(index, q, { limit: n }).map((h) => h.item.name);
+
+describe('умный поиск по встроенной базе', () => {
+  it('«картошка» находит картофель (синонимы)', () => {
+    const names = top('картошка', 10);
+    expect(names.some((n) => n.startsWith('Картофель'))).toBe(true);
+  });
+
+  it('«пюре» находит картофельное пюре', () => {
+    expect(top('пюре')[0]).toMatch(/Пюре картофельное/);
+  });
+
+  it('морфология: «картофельное пюре», «гречневая каша», «вареные яйца»', () => {
+    expect(top('картофельное пюре')[0]).toMatch(/Пюре картофельное/);
+    expect(top('гречневая каша', 3).some((n) => n.startsWith('Гречка'))).toBe(true);
+    expect(top('вареные яйца', 3).some((n) => /варёное вкрутую/.test(n))).toBe(true);
+  });
+
+  it('опечатки: «гречко», «тварог», «смитана»', () => {
+    expect(top('гречко', 3).some((n) => n.startsWith('Гречка'))).toBe(true);
+    expect(top('тварог', 3).some((n) => n.startsWith('Творог'))).toBe(true);
+    expect(top('смитана', 3).some((n) => n.startsWith('Сметана'))).toBe(true);
+  });
+
+  it('готовые блюда: борщ, плов, оливье, пельмени', () => {
+    expect(top('борщ')[0]).toBe('Борщ с говядиной');
+    expect(top('плов')[0]).toMatch(/^Плов/);
+    expect(top('оливье')[0]).toBe('Салат оливье');
+    expect(top('пельмени')[0]).toBe('Пельмени отварные');
+  });
+
+  it('незаконченное слово: «твор», «греч»', () => {
+    expect(top('твор', 3).some((n) => n.startsWith('Творог'))).toBe(true);
+    expect(top('греч', 3).some((n) => n.startsWith('Гречка'))).toBe(true);
+  });
+
+  it('история поднимает свой продукт выше', () => {
+    const items = [{ name: 'Творог 5% (Простоквашино)' }, { name: 'Творог 2%' }];
+    const idx = createSearchIndex(items, (i) => i);
+    const plain = searchIndex(idx, 'творог').map((h) => h.item.name);
+    const boosted = searchIndex(idx, 'творог', { boost: (i) => (i.name.includes('Простоквашино') ? 30 : 0) }).map((h) => h.item.name);
+    expect(plain[0]).toBe('Творог 2%');
+    expect(boosted[0]).toBe('Творог 5% (Простоквашино)');
+  });
+
+  it('частичное совпадение ниже полного', () => {
+    const idx = createSearchIndex([{ name: 'Йогурт греческий' }, { name: 'Йогурт клубничный' }], (i) => i);
+    const hits = searchIndex(idx, 'йогурт греческий');
+    expect(hits[0]?.full).toBe(true);
+    expect(hits.length).toBe(1);
+  });
+
+  it('совместимые помощники', () => {
+    expect(matchesQuery('Йогурт греческий', searchWords('греческий йогурт'))).toBe(true);
+    expect(rankByQuery(['Сливки', 'Масло сливочное'], 'сливк', (s) => s)[0]).toBe('Сливки');
+  });
+});
+
+describe('встроенная база', () => {
+  it('корректные значения на 100 г и уникальные id', () => {
     const ids = new Set<string>();
     for (const f of REFERENCE_FOODS) {
       expect(ids.has(f.id)).toBe(false);
@@ -35,12 +95,12 @@ describe('встроенный справочник USDA', () => {
       for (const v of [kcal, protein, fat, carbs]) expect(v).toBeGreaterThanOrEqual(0);
       expect(protein + fat + carbs).toBeLessThanOrEqual(100.5);
     }
+    expect(REFERENCE_FOODS.filter((f) => f.kind === 'dish').length).toBeGreaterThanOrEqual(20);
   });
 
-  it('находит варианты греческого йогурта и яичный белок', () => {
-    const yog = rankByQuery(REFERENCE_FOODS, 'греческий йогурт', (f) => f.name);
-    expect(yog.length).toBeGreaterThanOrEqual(3);
-    const white = rankByQuery(REFERENCE_FOODS, 'яичный белок', (f) => f.name)[0];
-    expect(white?.per100).toEqual({ kcal: 52, protein: 10.9, fat: 0.2, carbs: 0.7 });
+  it('яичный белок из USDA', () => {
+    const white = REFERENCE_FOODS.find((f) => f.id === 'usda:172183');
+    expect(white?.per100.kcal).toBe(52);
+    expect(white?.extra.sodium).toBe(166);
   });
 });

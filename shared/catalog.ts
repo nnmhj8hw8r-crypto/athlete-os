@@ -15,6 +15,38 @@ export const per100Schema = z.object({
 });
 export type Per100 = z.infer<typeof per100Schema>;
 
+/**
+ * Расширенные нутриенты на 100 г/мл. Любое поле может отсутствовать: «нет данных» ≠ 0.
+ * Единицы: г — сахара, клетчатка, жиры, омега-3, вода; мг — холестерин, натрий, калий, кальций,
+ * железо, магний; мкг — витамин D.
+ */
+export const EXTRA_KEYS = [
+  'sugars',
+  'addedSugars',
+  'fiber',
+  'satFat',
+  'monoFat',
+  'polyFat',
+  'transFat',
+  'omega3',
+  'cholesterol',
+  'sodium',
+  'potassium',
+  'calcium',
+  'iron',
+  'magnesium',
+  'vitD',
+  'water',
+] as const;
+export type ExtraKey = (typeof EXTRA_KEYS)[number];
+export const extraSchema = z.object(
+  Object.fromEntries(EXTRA_KEYS.map((k) => [k, z.number().finite().nonnegative().max(100_000).optional()])) as Record<
+    ExtraKey,
+    z.ZodOptional<z.ZodNumber>
+  >,
+);
+export type Extra = Partial<Record<ExtraKey, number>>;
+
 export const catalogProviderIdSchema = z.enum(['perek', 'off']);
 export type CatalogProviderId = z.infer<typeof catalogProviderIdSchema>;
 
@@ -25,6 +57,7 @@ export const catalogFoodSchema = z.object({
   brand: z.string().optional(),
   basis: nutrientBasisSchema,
   per100: per100Schema,
+  extra: extraSchema.optional(),
   /** Страница продукта у источника. Perek.us (бесплатный тариф) и Open Food Facts (ODbL) требуют ссылку рядом с цифрами. */
   url: z.string().optional(),
   license: z.string().optional(),

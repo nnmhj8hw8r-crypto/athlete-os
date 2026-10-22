@@ -16,6 +16,7 @@ function fullData(): BackupData {
     bodyWeights: [{ ...drafts.bodyWeights, id: 'b1', ...meta }],
     supplements: [{ ...drafts.supplements, id: 'p1', ...meta }],
     sources: [{ ...drafts.sources, id: 'r1', ...meta }],
+    water: [{ ...drafts.water, id: 'wa1', ...meta }],
     settings: [{ key: 'pendingSleepStart', value: '2026-10-20T20:30:00.000Z' }],
   };
 }
@@ -32,7 +33,7 @@ describe('parseBackup', () => {
     const r = parseBackup(JSON.stringify(backup));
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.total).toBe(11);
+      expect(r.total).toBe(12);
       expect(r.counts.meals).toBe(1);
       expect(r.backup.data).toEqual(backup.data);
     }
@@ -43,6 +44,23 @@ describe('parseBackup', () => {
       JSON.stringify({ format: BACKUP_FORMAT, schemaVersion: 1, exportedAt: meta.createdAt, data: { foods: [] } }),
     );
     expect(r.ok).toBe(true);
+  });
+
+  it('копия версии 1 (до воды и расширенных нутриентов) импортируется в версию 2', () => {
+    const v1meal = {
+      id: 'm1', date: '2026-10-21', mealType: 'breakfast', foodName: 'Гречка', basis: 'g', amount: 150,
+      per100: { kcal: 100, protein: 4, fat: 1, carbs: 20 }, nutrients: { kcal: 150, protein: 6, fat: 1.5, carbs: 30 },
+      createdAt: meta.createdAt, updatedAt: meta.createdAt,
+    };
+    const r = parseBackup(
+      JSON.stringify({ format: BACKUP_FORMAT, schemaVersion: 1, exportedAt: meta.createdAt, data: { meals: [v1meal] } }),
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.backup.schemaVersion).toBe(2);
+      expect(r.backup.data.water).toEqual([]);
+      expect(r.backup.data.meals[0]).toEqual(v1meal);
+    }
   });
 
   it('отклоняет не-JSON', () => {

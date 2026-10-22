@@ -14,7 +14,7 @@ export const BACKUP_FORMAT = 'personal-athlete-os-backup';
  * Версия структуры данных. Совпадает с версией схемы IndexedDB (src/data/db.ts).
  * При изменении структуры: увеличить, добавить миграцию в migrateBackupData и в db.ts.
  */
-export const DATA_SCHEMA_VERSION = 1;
+export const DATA_SCHEMA_VERSION = 2;
 export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 const MAX_REPORTED_ERRORS = 20;
 
@@ -46,13 +46,21 @@ export type ParseBackupResult =
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v);
 
-/**
- * Приведение данных старых версий к текущей. Сейчас версия одна, поэтому миграций нет;
- * функция — точка расширения, а не заглушка: при версии 2 сюда добавляется шаг 1 → 2.
- */
+/** Шаги миграции копий: ключ — версия, из которой выполняется переход на следующую. */
+const MIGRATIONS: Record<number, (data: Record<string, unknown>) => Record<string, unknown>> = {
+  // 1 → 2: появилась таблица воды; расширенные нутриенты необязательны, старые записи не меняются.
+  1: (data) => ({ ...data, water: data.water ?? [] }),
+};
+
+/** Приведение данных старых версий к текущей: шаги применяются по очереди. */
 function migrateBackupData(data: Record<string, unknown>, fromVersion: number): Record<string, unknown> {
-  if (fromVersion === DATA_SCHEMA_VERSION) return data;
-  throw new Error(`Нет миграции для версии ${fromVersion}`);
+  let result = data;
+  for (let v = fromVersion; v < DATA_SCHEMA_VERSION; v++) {
+    const step = MIGRATIONS[v];
+    if (!step) throw new Error(`Нет миграции для версии ${v}`);
+    result = step(result);
+  }
+  return result;
 }
 
 export function parseBackup(text: string): ParseBackupResult {

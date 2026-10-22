@@ -59,4 +59,5 @@ export const drafts: { [K in EntityTableName]: DraftOf<K> } = {
   bodyWeights: { measuredAt: '2026-10-21T05:00:00.000Z', weightKg: 74.2 },
   supplements: { name: 'Тестовая добавка', dose: 5, doseUnit: 'г', purpose: 'проверка формы' },
   sources: { title: 'Тестовый источник', checkedDate: '2026-10-21', sourceType: 'other' },
+  water: { date: '2026-10-21', ml: 250 },
 };
