@@ -237,9 +237,12 @@ function WeekStats({
               Белок {r1(avg.protein / k / weightKg)} г/кг · углеводы {r1(avg.carbs / k / weightKg)} г/кг в среднем.
             </p>
           )}
-          <p className="small">
-            Вода: в среднем {r1(perDay.reduce((s, x) => s + x.water, 0) / 7 / 1000)} л в день.
-          </p>
+          {perDay.some((x) => x.water > 0) && (
+            <p className="small">
+              Вода: в среднем {r1(perDay.reduce((s, x) => s + x.water, 0) / perDay.filter((x) => x.water > 0).length / 1000)} л в день
+              (по {perDay.filter((x) => x.water > 0).length} дн. с записями).
+            </p>
+          )}
         </section>
       )}
       <ExtendedNutrients entries={meals} days={k} />

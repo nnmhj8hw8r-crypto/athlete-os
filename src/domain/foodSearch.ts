@@ -157,13 +157,16 @@ function scoreWord(w: QueryWord, doc: IndexedDoc<unknown>): { score: number; fir
     else {
       for (const syn of w.synonyms) {
         if (syn !== w.stem && syn.length >= 2 && (s === syn || s.startsWith(syn))) {
-          sc = 75;
+          // Синоним — почти то же слово («картошка» = «картофель»), поэтому оценка близка к точной.
+          sc = 88;
           break;
         }
       }
       if (!sc && w.typos > 0 && t[0] === w.raw[0]) {
-        // Опечатка: сравниваем основы и начало слова длиной с запрос (пользователь мог ещё не дописать).
-        const dist = Math.min(editDistance(w.stem, s, w.typos), editDistance(w.raw, t.slice(0, w.raw.length), w.typos));
+        // Опечатка: сравниваем основы; для слов от 5 букв ещё и начало слова (пользователь мог не дописать).
+        // Для коротких слов сравнение по началу даёт ложные совпадения («борщ» ≈ «боро-динский»).
+        const prefixDist = w.raw.length >= 5 ? editDistance(w.raw, t.slice(0, w.raw.length), w.typos) : w.typos + 1;
+        const dist = Math.min(editDistance(w.stem, s, w.typos), prefixDist);
         if (dist <= w.typos) sc = 60 - dist * 10;
       }
     }

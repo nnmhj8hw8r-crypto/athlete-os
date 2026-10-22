@@ -99,18 +99,28 @@ export function computePlan(plan: NutritionPlan, weightKg: number, todayKey: str
       delta = (diff * KCAL_PER_KG) / daysLeft;
     }
   }
+  const fmt = (n: number) => n.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
   const weeklyChangePct = weeklyChangeKg === null ? null : (weeklyChangeKg / weightKg) * 100;
   if (weeklyChangePct !== null && weeklyChangePct < -FAST_LOSS_PCT_PER_WEEK) {
     warnings.push(
-      `Нужный темп — ${Math.abs(weeklyChangePct).toFixed(1)}% массы в неделю. Это быстрее 1%/нед: при быстром снижении ` +
+      `Нужный темп — ${fmt(Math.abs(weeklyChangePct))}% массы в неделю. Это быстрее 1%/нед: при быстром снижении ` +
         'спортсмены чаще теряют мышечную массу и силу. Обсудите цель с тренером или спортивным врачом; ' +
         'приложение не рассчитывает сгонку за счёт воды.',
     );
   }
 
-  const kcal = tdee + delta;
+  // Цель ниже основного обмена приложение не предлагает: ограничиваем калорийность и честно
+  // показываем, к какому весу такой режим приведёт к дате.
+  let kcal = tdee + delta;
   if (kcal < bmr) {
-    warnings.push('Расчётная калорийность ниже основного обмена. Такой дефицит не рекомендуется без контроля специалиста.');
+    kcal = bmr;
+    const expectedWeekly = ((bmr - tdee) / KCAL_PER_KG) * 7;
+    const expectedAtDate = daysLeft ? weightKg + (expectedWeekly / 7) * daysLeft : weightKg;
+    warnings.push(
+      `Безопасно выйти на цель к этой дате не получится: калорийность ограничена основным обменом (${Math.round(bmr)} ккал). ` +
+        `При таком питании ожидается около ${fmt(expectedWeekly)} кг/нед, к дате — примерно ${fmt(expectedAtDate)} кг. ` +
+        'Пересмотрите дату или цель вместе с тренером.',
+    );
   }
   const protein = plan.proteinPerKg * weightKg;
   const fat = (kcal * plan.fatPct) / 100 / 9;
@@ -118,7 +128,7 @@ export function computePlan(plan: NutritionPlan, weightKg: number, todayKey: str
   const carbsPerKg = carbs / weightKg;
   if (carbsPerKg < 3) {
     warnings.push(
-      `Углеводы ${carbsPerKg.toFixed(1)} г/кг — ниже 3 г/кг, нижней границы для лёгкой нагрузки по совместной позиции ACSM. ` +
+      `Углеводы ${fmt(carbsPerKg)} г/кг — ниже 3 г/кг, нижней границы для лёгкой нагрузки по совместной позиции ACSM. ` +
         'Для интенсивных тренировок этого может не хватить.',
     );
   }

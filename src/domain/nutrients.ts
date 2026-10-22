@@ -100,6 +100,7 @@ export function sumExtra(
 export const LOW_COVERAGE = 0.5;
 
 export function formatNutrient(value: number, unit: NutrientMeta['unit']): string {
+  if (value > 0 && value < 0.01) return `< 0,01 ${unit}`;
   const digits = value >= 100 ? 0 : value >= 10 ? 1 : 2;
   const r = Number(value.toFixed(digits));
   return `${r.toLocaleString('ru-RU')} ${unit}`;

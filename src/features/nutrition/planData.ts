@@ -15,9 +15,17 @@ export interface PlanState {
 }
 
 export function usePlanState(): PlanState {
-  const raw = useLiveQuery(() => db.settings.get(PLAN_SETTING_KEY), []);
-  const latestWeight = useLiveQuery(() => db.bodyWeights.orderBy('measuredAt').last(), []);
-  if (raw === undefined && latestWeight === undefined) return { loading: true };
+  // Результат обёрнут в объект: useLiveQuery возвращает undefined и пока идёт загрузка, и когда записи нет —
+  // без обёртки «плана ещё нет» нельзя отличить от «ещё загружается».
+  const data = useLiveQuery(
+    async () => ({
+      raw: await db.settings.get(PLAN_SETTING_KEY),
+      latestWeight: await db.bodyWeights.orderBy('measuredAt').last(),
+    }),
+    [],
+  );
+  if (!data) return { loading: true };
+  const { raw, latestWeight } = data;
   const parsed = raw ? nutritionPlanSchema.safeParse(raw.value) : null;
   const plan = parsed?.success ? parsed.data : undefined;
   const targets =

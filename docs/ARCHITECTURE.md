@@ -126,6 +126,20 @@ JSON `{ format: "personal-athlete-os-backup", schemaVersion, exportedAt, appVers
 Perek.us (если сервер с ключом доступен) → Open Food Facts. Без сервера (GitHub Pages) Perek пропускается.
 Поиск по названию — только Perek.us. Атрибуция в интерфейсе берётся по `food.provider`.
 
+### Питание v0.4: модули
+
+- `src/domain/russianStemmer.ts`, `foodSearch.ts` — поиск (стемминг, синонимы, опечатки, ранжирование).
+- `src/domain/foodHistory.ts` — «Моя история» из записей `meals` (последняя порция, частота, по приёмам).
+- `src/domain/nutrients.ts` — расширенные нутриенты: подписи, пересчёт, суммы с покрытием.
+- `src/domain/plan.ts` — личный план (схема, расчёт, источники). Хранение — `settings.nutritionPlan`.
+- `src/data/offlineBase.ts` — загрузка `public/data/off-ru.json` (precache SW), индекс поиска, поиск по EAN.
+- `src/data/meals.ts` — запись приёма пищи (снимок КБЖУ и `extra`), быстрый ввод, вода.
+- `src/features/nutrition/foodOptions.ts` — единый поиск по истории, своим продуктам, встроенной и офлайн-базе.
+- `AddFlow.tsx` (шторка → экран «История/Поиск/Рецепты» → порция), `MealEntryDialog.tsx` (порция и правка),
+  `NutritionPage.tsx`, `WaterCard.tsx`, `NutritionStats.tsx`, `PlanDialog.tsx`, `NutrientDetails.tsx`.
+- Встроенная база: `scripts/build-reference-foods.py` → `src/data/referenceFoods.ts` (продукты с `aliases`,
+  блюда с `recipe`). Офлайн-база OFF: `scripts/build-off-russia.py` → `public/data/off-ru.json`.
+
 ### Встроенный справочник (с v0.3)
 
 - `src/data/referenceFoods.ts` — 150 продуктов USDA FoodData Central SR Legacy (CC0), значения на 100 г.

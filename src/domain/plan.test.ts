@@ -37,7 +37,9 @@ describe('личный план', () => {
     const fast = computePlan({ ...base, goal: 'target', targetWeightKg: 71, targetDate: '2026-10-29' }, 75, '2026-10-22', 2026);
     expect(fast.weeklyChangePct).toBeLessThan(-1);
     expect(fast.warnings.some((w) => w.includes('1%/нед'))).toBe(true);
-    expect(fast.warnings.some((w) => w.includes('основного обмена'))).toBe(true);
+    // калорийность не опускается ниже основного обмена, показан реалистичный прогноз
+    expect(fast.kcal).toBe(fast.bmr);
+    expect(fast.warnings.some((w) => w.includes('ограничена основным обменом'))).toBe(true);
   });
 
   it('прошедшая дата цели — предупреждение без деления на ноль', () => {

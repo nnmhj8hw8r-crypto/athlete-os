@@ -153,8 +153,9 @@ export function useFoodSearch(query: string, data: ReturnType<typeof useFoodData
     const hits = [
       ...searchIndex(ownIndex, query, { boost, limit }),
       ...searchIndex(refIndex, query, { boost, limit }),
+      // Товары с брендом ниже обычных продуктов: на «картошку» сначала картофель, потом пирожное «Картошка».
       ...(offline
-        ? searchIndex(offline.index, query, { limit }).map((h) => ({ ...h, item: offlineOption(h.item) }))
+        ? searchIndex(offline.index, query, { limit, boost: () => -15 }).map((h) => ({ ...h, item: offlineOption(h.item) }))
         : []),
     ];
     hits.sort((a, b) => b.score - a.score);
