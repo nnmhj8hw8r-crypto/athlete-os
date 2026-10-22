@@ -14,7 +14,7 @@ describe('встроенный каталог упражнений', () => {
   it('есть упражнения для дня борьбы', () => {
     expect(libraryExercise('lib:randori-ground')?.metric).toBe('rounds');
     expect(libraryExercise('lib:randori-standing')?.metric).toBe('rounds');
-    expect(libraryExercise('lib:warmup-general')?.metric).toBe('check');
+    expect(libraryExercise('lib:analysis')?.metric).toBe('check');
   });
 
   it('своё упражнение с тем же названием заменяет встроенное', () => {
@@ -28,6 +28,15 @@ describe('встроенный каталог упражнений', () => {
   it('у своего упражнения без группы — «Другое», вес × повторения', () => {
     const cat = buildCatalog([{ id: 'x', name: 'Своё', createdAt: '', updatedAt: '' }]);
     expect(cat[0]).toMatchObject({ group: 'other', metric: 'weight_reps', muscles: [] });
+  });
+});
+
+describe('без раздела «Разминка»', () => {
+  it('в каталоге нет группы «Разминка», старые id по-прежнему находятся', () => {
+    expect(EXERCISE_LIBRARY.some((e) => e.group === 'warmup')).toBe(false);
+    expect(buildCatalog([]).some((e) => e.id === 'lib:warmup-general')).toBe(false);
+    expect(libraryExercise('lib:warmup-general')?.name).toBe('Общая разминка');
+    expect(buildCatalog([{ id: 'w', name: 'Моя разминка', group: 'warmup', createdAt: '', updatedAt: '' }])[0]?.group).toBe('other');
   });
 });
 

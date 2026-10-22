@@ -135,7 +135,7 @@ export function StartDialog({ onClose, scheduleId }: { onClose: () => void; sche
               {WORKOUT_FORMAT_LABEL[f]}
               <small>
                 {f === 'exercises' && 'Зал, ОФП: упражнения добавляете по ходу'}
-                {f === 'mat' && 'Разминка, техника, немного борьбы — запишите, над чем работали'}
+                {f === 'mat' && 'Техника, немного борьбы — запишите, над чем работали'}
                 {f === 'fight' && 'Встречи в партере и в стойке, затем разбор'}
               </small>
             </span>

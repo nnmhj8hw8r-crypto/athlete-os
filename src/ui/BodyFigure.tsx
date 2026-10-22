@@ -1,6 +1,7 @@
 // «Человечек» с подсвеченными мышцами — иконка упражнения (собственный рисунок, без внешних картинок).
 // Основные мышцы — насыщенный красный, вспомогательные — светлый. Вид спереди или сзади выбирается
 // по тому, где больше основных мышц; на экране упражнения показываются оба вида.
+import { useState } from 'react';
 import type { Muscle } from '../domain/schemas.ts';
 
 type View = 'front' | 'back';
@@ -120,11 +121,45 @@ export function BodyFigure({ primary, secondary = [], view = 'auto', className, 
   );
 }
 
-/** Круглая иконка упражнения: белый круг с «человечком». */
-export function ExerciseIcon({ muscles, secondary, size = 'md' }: { muscles: readonly Muscle[]; secondary?: readonly Muscle[]; size?: 'sm' | 'md' | 'lg' }) {
+/**
+ * Круглая иконка упражнения: рисунок позы (если есть, src — путь от корня сайта) или «человечек»
+ * со схемой мышц. Если рисунок не загрузился, показывается схема.
+ */
+export function ExerciseIcon({
+  muscles,
+  secondary,
+  size = 'md',
+  src,
+}: {
+  muscles: readonly Muscle[];
+  secondary?: readonly Muscle[];
+  size?: 'sm' | 'md' | 'lg';
+  src?: string | null;
+}) {
+  const [failed, setFailed] = useState(false);
+  const showImage = !!src && !failed;
   return (
-    <span className={`ex-icon ${size}`} aria-hidden="true">
-      <BodyFigure primary={muscles} secondary={secondary} />
+    <span className={`ex-icon ${size}${showImage ? ' pose' : ''}`} aria-hidden="true">
+      {showImage ? (
+        <img src={`${import.meta.env.BASE_URL}${src}`} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+      ) : (
+        <BodyFigure primary={muscles} secondary={secondary} />
+      )}
     </span>
+  );
+}
+
+/** Крупный рисунок позы упражнения с подписью об источнике (страница упражнения, «Техника»). */
+export function ExercisePose({ src, credit, licenseUrl }: { src: string; credit: string; licenseUrl: string }) {
+  return (
+    <figure className="ex-pose">
+      <img src={`${import.meta.env.BASE_URL}${src}`} alt="Как выполняется упражнение" decoding="async" />
+      <figcaption>
+        {credit} ·{' '}
+        <a href={licenseUrl} target="_blank" rel="noreferrer">
+          лицензия
+        </a>
+      </figcaption>
+    </figure>
   );
 }

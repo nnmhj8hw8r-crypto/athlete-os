@@ -4,7 +4,8 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { db } from '../../data/db.ts';
 import { saveEntity } from '../../data/repo.ts';
-import { buildCatalog, searchCatalog, type CatalogExercise } from '../../domain/exerciseLibrary.ts';
+import { buildCatalog, RETIRED_EXERCISES, searchCatalog, toCatalogExercise, type CatalogExercise } from '../../domain/exerciseLibrary.ts';
+import { exerciseImagePath } from '../../domain/exerciseImages.ts';
 import type { FieldErrors } from '../../domain/form.ts';
 import {
   EXERCISE_GROUPS,
@@ -28,14 +29,19 @@ export function useCatalog(): CatalogExercise[] | undefined {
   return useMemo(() => (own ? buildCatalog(own) : undefined), [own]);
 }
 
+/** Каталог по id, включая убранные из каталога упражнения — для показа старых записей. */
 export function useCatalogMap(): Map<string, CatalogExercise> {
   const catalog = useCatalog();
-  return useMemo(() => new Map((catalog ?? []).map((e) => [e.id, e])), [catalog]);
+  return useMemo(
+    () => new Map([...RETIRED_EXERCISES.map(toCatalogExercise), ...(catalog ?? [])].map((e) => [e.id, e])),
+    [catalog],
+  );
 }
 
-/** Иконка упражнения по id (если упражнения нет в каталоге — серый человечек). */
+/** Иконка упражнения: рисунок позы Everkinetic, если он есть, иначе схема мышц (нет в каталоге — серая). */
 export function ExIcon({ ex, size }: { ex: CatalogExercise | undefined; size?: 'sm' | 'md' | 'lg' }) {
-  return <ExerciseIcon muscles={ex?.muscles ?? []} secondary={ex?.musclesSecondary} size={size} />;
+  const src = ex ? exerciseImagePath(ex.id) : null;
+  return <ExerciseIcon key={src ?? 'figure'} muscles={ex?.muscles ?? []} secondary={ex?.musclesSecondary} size={size} src={src} />;
 }
 
 export const MUSCLE_LABEL: Record<Muscle, string> = {
@@ -57,8 +63,8 @@ export const MUSCLE_LABEL: Record<Muscle, string> = {
   hamstrings: 'бицепс бедра',
 };
 
-/** Порядок групп в каталоге и на экране программы. */
-export const GROUP_ORDER: ExerciseGroup[] = [...EXERCISE_GROUPS];
+/** Порядок групп в каталоге (раздела «Разминка» нет — решение пользователя, v0.5.1). */
+export const GROUP_ORDER: ExerciseGroup[] = EXERCISE_GROUPS.filter((g) => g !== 'warmup');
 
 // ---------- Иконки и обложки программ ----------
 
@@ -298,7 +304,7 @@ export function ExerciseFormDialog({ exercise, initialName = '', onClose, onSave
           <Field label="Группа">
             {(p) => (
               <select {...p} className="input" value={group} onChange={(e) => setGroup(e.target.value as ExerciseGroup)}>
-                {EXERCISE_GROUPS.map((g) => (
+                {GROUP_ORDER.map((g) => (
                   <option key={g} value={g}>
                     {EXERCISE_GROUP_LABEL[g]}
                   </option>

@@ -54,7 +54,7 @@ export function ProgramPage({ route }: { route: Route }) {
   const items = program.items;
   const lead = items.findIndex((it) => {
     const g = map.get(it.exerciseId)?.group;
-    return g !== 'warmup' && g !== 'cardio';
+    return g !== 'cardio';
   });
   const warmCount = lead === -1 ? items.length : lead;
   const main = items.length - warmCount;
@@ -99,7 +99,7 @@ export function ProgramPage({ route }: { route: Route }) {
       {items.length === 0 && <EmptyState>В программе пока нет упражнений. Добавьте первое.</EmptyState>}
       {warmCount > 0 && (
         <section className="ex-section">
-          <h2 className="ex-section-head plain">Разминка и кардио</h2>
+          <h2 className="ex-section-head plain">Кардио</h2>
           <ul className="ex-list">{items.slice(0, warmCount).map((it, i) => row(it, i))}</ul>
         </section>
       )}
@@ -174,7 +174,7 @@ export function defaultItem(ex: CatalogExercise): ProgramItem {
     case 'reps':
       return { ...base, sets: 3, repsMin: 8, repsMax: 12, restSec: 90 };
     case 'time':
-      return { ...base, sets: ex.group === 'warmup' ? 1 : 3, durationSec: ex.group === 'warmup' ? 600 : 60, restSec: ex.group === 'warmup' ? undefined : 60 };
+      return { ...base, sets: 3, durationSec: 60, restSec: 60 };
     case 'distance_time':
       return { ...base, durationSec: 600 };
     case 'rounds':

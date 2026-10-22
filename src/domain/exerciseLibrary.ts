@@ -17,11 +17,8 @@ export interface LibraryExercise {
 type Row = [slug: string, name: string, group: ExerciseGroup, metric: ExerciseMetric, primary: Muscle[], secondary?: Muscle[], aliases?: string[]];
 
 const ROWS: Row[] = [
-  // Разминка
-  ['warmup-general', 'Общая разминка', 'warmup', 'check', [], ['quads', 'delts', 'abs']],
-  ['warmup-joints', 'Суставная разминка', 'warmup', 'check', [], ['delts', 'forearms', 'quads']],
-  ['warmup-acrobatics', 'Акробатика и страховки', 'warmup', 'check', ['abs'], ['delts', 'lowerBack'], ['кувырки', 'самостраховка', 'укеми']],
-  ['stretching', 'Растяжка', 'warmup', 'time', ['hamstrings'], ['adductors', 'lowerBack'], ['заминка', 'стретчинг']],
+  ['warmup-acrobatics', 'Акробатика и страховки', 'wrestling', 'check', ['abs'], ['delts', 'lowerBack'], ['кувырки', 'самостраховка', 'укеми']],
+  ['stretching', 'Растяжка', 'other', 'time', ['hamstrings'], ['adductors', 'lowerBack'], ['заминка', 'стретчинг']],
   // Кардио
   ['treadmill-walk', 'Ходьба на дорожке', 'cardio', 'distance_time', ['quads', 'calves'], ['glutes']],
   ['treadmill-run', 'Бег на дорожке', 'cardio', 'distance_time', ['quads', 'calves'], ['hamstrings', 'glutes']],
@@ -115,7 +112,16 @@ const ROWS: Row[] = [
   ['analysis', 'Разбор и анализ', 'wrestling', 'check', [], [], ['разбор', 'видеоразбор']],
 ];
 
-export const EXERCISE_LIBRARY: LibraryExercise[] = ROWS.map(([slug, name, group, metric, muscles, musclesSecondary = [], aliases]) => ({
+/**
+ * Убранные из каталога (v0.5.1, решение пользователя: раздела «Разминка» нет). Остаются для показа
+ * старых записей журнала и программ, где они уже есть; в каталоге и поиске не появляются.
+ */
+const RETIRED_ROWS: Row[] = [
+  ['warmup-general', 'Общая разминка', 'other', 'check', [], ['quads', 'delts', 'abs']],
+  ['warmup-joints', 'Суставная разминка', 'other', 'check', [], ['delts', 'forearms', 'quads']],
+];
+
+const toLibrary = ([slug, name, group, metric, muscles, musclesSecondary = [], aliases]: Row): LibraryExercise => ({
   id: `lib:${slug}`,
   name,
   group,
@@ -123,9 +129,12 @@ export const EXERCISE_LIBRARY: LibraryExercise[] = ROWS.map(([slug, name, group,
   muscles,
   musclesSecondary,
   aliases,
-}));
+});
 
-const BY_ID = new Map(EXERCISE_LIBRARY.map((e) => [e.id, e]));
+export const EXERCISE_LIBRARY: LibraryExercise[] = ROWS.map(toLibrary);
+export const RETIRED_EXERCISES: LibraryExercise[] = RETIRED_ROWS.map(toLibrary);
+
+const BY_ID = new Map([...EXERCISE_LIBRARY, ...RETIRED_EXERCISES].map((e) => [e.id, e]));
 
 export function libraryExercise(id: string): LibraryExercise | undefined {
   return BY_ID.get(id);
@@ -149,7 +158,8 @@ export function toCatalogExercise(e: Exercise | LibraryExercise): CatalogExercis
     return {
       id: e.id,
       name: e.name,
-      group: e.group ?? 'other',
+      // Группы «Разминка» больше нет — старые свои упражнения с ней показываются в «Другом».
+      group: !e.group || e.group === 'warmup' ? 'other' : e.group,
       metric: e.metric ?? 'weight_reps',
       muscles: e.muscles ?? [],
       musclesSecondary: e.musclesSecondary ?? [],

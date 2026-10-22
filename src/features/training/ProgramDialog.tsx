@@ -47,9 +47,9 @@ function starterItems(format: WorkoutFormat): ProgramItem[] {
     return { exerciseId: ex.id, name: ex.name, metric: ex.metric, sets: 1, ...patch };
   };
   if (format === 'fight') {
-    return [item('warmup-general'), item('randori-ground', { sets: 2, durationSec: 180 }), item('randori-standing', { sets: 6, durationSec: 180, restSec: 60 }), item('analysis')];
+    return [item('randori-ground', { sets: 2, durationSec: 180 }), item('randori-standing', { sets: 6, durationSec: 180, restSec: 60 }), item('analysis')];
   }
-  if (format === 'mat') return [item('warmup-general'), item('technique', { durationSec: 1800 })];
+  if (format === 'mat') return [item('technique', { durationSec: 1800 })];
   return [];
 }
 
@@ -202,8 +202,8 @@ export function ProgramDialog({ program, onClose, onSaved, onDeleted }: Props) {
           {!program && format !== 'exercises' && (
             <span className="hint">
               {format === 'fight'
-                ? 'Будет создан стартовый план: разминка, 2 встречи в партере, 6 встреч в стойке по 3 минуты, разбор. Его можно изменить.'
-                : 'Будет создан стартовый план: разминка и отработка техники. Его можно изменить.'}
+                ? 'Будет создан стартовый план: 2 встречи в партере, 6 встреч в стойке по 3 минуты, разбор. Его можно изменить.'
+                : 'Будет создан стартовый план: отработка техники. Его можно изменить.'}
             </span>
           )}
         </div>

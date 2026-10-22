@@ -20,7 +20,8 @@ import {
   WORKOUT_TYPE_LABEL,
 } from '../../domain/training.ts';
 import { formatDateTime, fromLocalInputValue, toLocalInputValue } from '../../domain/time.ts';
-import { BodyFigure } from '../../ui/BodyFigure.tsx';
+import { EXERCISE_IMAGE_CREDIT, EXERCISE_IMAGE_LICENSE_URL, exerciseImagePath } from '../../domain/exerciseImages.ts';
+import { BodyFigure, ExercisePose } from '../../ui/BodyFigure.tsx';
 import { EmptyState, Field, FormError, Modal, TopBar } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
@@ -484,6 +485,9 @@ function ExerciseView({ session, index, ex, setExercises, rest }: ExerciseViewPr
 
       {modal === 'technique' && (
         <Modal title={ex.name} onClose={() => setModal(null)}>
+          {exerciseImagePath(ex.exerciseId) && (
+            <ExercisePose src={exerciseImagePath(ex.exerciseId)!} credit={EXERCISE_IMAGE_CREDIT} licenseUrl={EXERCISE_IMAGE_LICENSE_URL} />
+          )}
           {cat && <BodyFigure primary={cat.muscles} secondary={cat.musclesSecondary} view="both" className="ex-hero-figure" />}
           <TechniqueNotes exerciseId={ex.exerciseId} />
           <p className="small muted">Видео техники появится в следующих версиях.</p>
