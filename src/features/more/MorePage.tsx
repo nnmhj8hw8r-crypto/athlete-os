@@ -1,5 +1,7 @@
 import { Page } from '../../ui/components.tsx';
 import { href } from '../../ui/router.ts';
+import { useFeedback } from '../../ui/feedback.tsx';
+import { SHARE_MESSAGE, shareApp } from '../../ui/share.ts';
 import { useFeedbackUrl } from '../onboarding/useProfile.ts';
 
 const ITEMS = [
@@ -14,6 +16,8 @@ const ITEMS = [
 
 export function MorePage() {
   const feedback = useFeedbackUrl();
+  const { notify } = useFeedback();
+  const share = () => void shareApp().then((r) => SHARE_MESSAGE[r] && notify(SHARE_MESSAGE[r]!, r === 'failed' ? 'error' : 'info'));
   return (
     <Page title="Ещё">
       <a className="hero-card link" href={feedback} target="_blank" rel="noreferrer">
@@ -21,6 +25,10 @@ export function MorePage() {
         <span className="hero-title">Оставить отзыв</span>
         <span className="muted small">Что понравилось, что неудобно, чего не хватает — 2–3 минуты. Форма внешняя (Tally), ваши записи в неё не попадают.</span>
       </a>
+      <button type="button" className="hero-card link share-card" onClick={share}>
+        <span className="hero-title">Поделиться приложением с друзьями</span>
+        <span className="muted small">Отправить ссылку. У каждого по ней своё приложение — ваши записи не передаются.</span>
+      </button>
       <ul className="list">
         {ITEMS.map((i) => (
           <li key={i.path}>

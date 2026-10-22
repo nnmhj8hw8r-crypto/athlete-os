@@ -7,19 +7,22 @@ import { useState } from 'react';
 import { db } from '../../data/db.ts';
 import { setSetting } from '../../data/repo.ts';
 import type { ChartLineStyle } from '../../domain/chartPath.ts';
-import { DEFAULT_LAYOUT, normalizeLayout, swapWidgets, updateWidget, WIDGET_LABEL, WIDGET_PERIODS, type WidgetConfig } from '../../domain/dashboard.ts';
-import { FULL_ONLY_WIDGETS, revealFullWidgets } from '../../domain/profile.ts';
+import { DEFAULT_LAYOUT, normalizeLayout, swapWidgets, updateWidget, WIDGET_LABEL, WIDGET_PERIODS, type WidgetConfig, type WidgetId } from '../../domain/dashboard.ts';
+import { FULL_ONLY_WIDGETS, recommendedWidgets, revealFullWidgets, shouldAskFeedback, type Profile } from '../../domain/profile.ts';
+import { countAll } from '../../data/repo.ts';
+import { SHARE_MESSAGE, shareApp } from '../../ui/share.ts';
+import { useFeedback } from '../../ui/feedback.tsx';
 import { sumNutrients } from '../../domain/nutrition.ts';
 import { estimatedSleepMinutes, RATING_FIELDS, RATING_META, timeInBedMinutes } from '../../domain/sleep.ts';
 import { WORKOUT_FORMAT_LABEL, WORKOUT_TYPE_LABEL } from '../../domain/training.ts';
 import { formatDateKey, formatDateTime, formatDuration, toDateKey, todayKey } from '../../domain/time.ts';
 import { setChartStyle, useChartStyle } from '../../ui/chartStyle.ts';
-import { Card, EmptyState, Modal, Page, Segmented } from '../../ui/components.tsx';
+import { Card, Modal, Page, Segmented } from '../../ui/components.tsx';
 import { Icons } from '../../ui/icons.tsx';
 import { href, navigate } from '../../ui/router.ts';
 import { MacroGrid } from '../nutrition/MacroGrid.tsx';
 import { SleepChart, SleepStrip, WellbeingChart, type Period } from '../recovery/RecoveryCharts.tsx';
-import { saveProfile, useProfile } from '../onboarding/useProfile.ts';
+import { saveProfile, useFeedbackUrl, useProfile } from '../onboarding/useProfile.ts';
 import { CheckinDialog } from '../recovery/CheckinDialog.tsx';
 import { MuscleFatigueCard } from '../recovery/MuscleFatigueCard.tsx';
 import { ReadinessCard } from '../recovery/ReadinessCard.tsx';
@@ -79,18 +82,18 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+      {profile && layout && <FeedbackPrompt profile={profile} />}
       {layout === undefined ? (
         <p className="muted">Загрузка…</p>
       ) : visible.length === 0 ? (
-        <EmptyState
-          action={
-            <button type="button" className="btn primary" onClick={() => setEditing(true)}>
-              Выбрать виджеты
-            </button>
-          }
-        >
-          Все виджеты скрыты.
-        </EmptyState>
+        <section className="hero-card add-widgets">
+          <span className="hero-label">Главная</span>
+          <b className="readiness-title">Соберите свою сводку</b>
+          <span className="muted">Выберите карточки, которые хотите видеть каждый день: сон, готовность, питание, вес и другие.</span>
+          <button type="button" className="btn primary big" onClick={() => setEditing(true)}>
+            {Icons.plus} Добавить виджеты
+          </button>
+        </section>
       ) : (
         visible.map((w) => (
           <div key={w.id} className="widget">
@@ -117,8 +120,45 @@ export function DashboardPage() {
           </div>
         ))
       )}
-      {editing && layout && allowed && <CustomizeDialog layout={layout} shown={allowed} save={save} onClose={() => setEditing(false)} />}
+      {editing && layout && allowed && (
+        <CustomizeDialog
+          layout={layout}
+          shown={allowed}
+          recommended={profile ? recommendedWidgets(profile).filter((id) => allowed.some((w) => w.id === id)) : []}
+          save={save}
+          onClose={() => setEditing(false)}
+        />
+      )}
     </Page>
+  );
+}
+
+/** Просьба об отзыве после нескольких дней использования (не при знакомстве) + «Поделиться». */
+function FeedbackPrompt({ profile }: { profile: Profile }) {
+  const records = useLiveQuery(async () => (await countAll()) - (await db.settings.count()), []);
+  const url = useFeedbackUrl();
+  const { notify } = useFeedback();
+  if (records === undefined || !shouldAskFeedback(profile, new Date(), records)) return null;
+  return (
+    <section className="hero-card">
+      <span className="hero-label">Демо-версия</span>
+      <b className="readiness-title">Как вам приложение?</b>
+      <span className="muted">
+        Расскажите, что понравилось и чего не хватает, — это 2–3 минуты (внешняя форма Tally, ваши записи в неё не попадают). И поделитесь
+        приложением с друзьями, если оно вам пригодилось.
+      </span>
+      <div className="row">
+        <a className="btn primary" href={url} target="_blank" rel="noreferrer">
+          Оставить отзыв
+        </a>
+        <button type="button" className="btn" onClick={() => void shareApp().then((r) => SHARE_MESSAGE[r] && notify(SHARE_MESSAGE[r]!, r === 'failed' ? 'error' : 'info'))}>
+          Поделиться
+        </button>
+        <button type="button" className="btn ghost" onClick={() => void saveProfile({ ...profile, hideFeedbackPrompt: true })}>
+          Скрыть
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -207,7 +247,25 @@ function TrainingsWidget() {
 }
 
 /** layout — весь список (сохраняется целиком), shown — то, что доступно в текущем режиме. */
-function CustomizeDialog({ layout, shown, save, onClose }: { layout: WidgetConfig[]; shown: WidgetConfig[]; save: (l: WidgetConfig[]) => void; onClose: () => void }) {
+function CustomizeDialog({
+  layout,
+  shown,
+  recommended,
+  save,
+  onClose,
+}: {
+  layout: WidgetConfig[];
+  shown: WidgetConfig[];
+  recommended: WidgetId[];
+  save: (l: WidgetConfig[]) => void;
+  onClose: () => void;
+}) {
+  const toAdd = recommended.filter((id) => !shown.find((w) => w.id === id)?.visible);
+  const showAll = (ids: WidgetId[]) => {
+    let next = layout;
+    for (const id of ids) next = updateWidget(next, id, { visible: true });
+    save(next);
+  };
   const chartStyle = useChartStyle();
   return (
     <Modal
@@ -224,6 +282,24 @@ function CustomizeDialog({ layout, shown, save, onClose }: { layout: WidgetConfi
         </>
       }
     >
+      {toAdd.length > 0 && (
+        <div className="recommended">
+          <div className="row-between">
+            <b>Рекомендуем для вас</b>
+            <button type="button" className="btn small primary" onClick={() => showAll(toAdd)}>
+              Добавить все
+            </button>
+          </div>
+          <div className="chips">
+            {toAdd.map((id) => (
+              <button key={id} type="button" className="chip" onClick={() => showAll([id])}>
+                + {WIDGET_LABEL[id]}
+              </button>
+            ))}
+          </div>
+          <p className="small muted">Подобраны по ответам в приветствии.</p>
+        </div>
+      )}
       <p className="small muted">Включайте и выключайте виджеты, меняйте порядок стрелками и выбирайте период графиков.</p>
       <ul className="widget-list">
         {shown.map((w, i) => {

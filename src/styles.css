@@ -978,3 +978,8 @@ html { scroll-behavior: smooth; }
 .onb-actions { display: flex; gap: 10px; position: sticky; bottom: calc(8px + env(safe-area-inset-bottom)); }
 .onb-actions .btn.big { flex: 1; }
 .level-hint { display: flex; flex-direction: column; gap: 10px; }
+
+/* Главная нового пользователя и рекомендации (v0.9.1) */
+.add-widgets .btn.big { display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+.recommended { display: flex; flex-direction: column; gap: 8px; padding: 12px; margin-bottom: 12px; border-radius: var(--radius-sm); border: 1px solid var(--text); }
+.share-card { font: inherit; text-align: left; cursor: pointer; width: 100%; }

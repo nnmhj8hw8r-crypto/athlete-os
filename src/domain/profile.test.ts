@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LAYOUT } from './dashboard.ts';
-import { defaultLevel, feedbackUrl, layoutForProfile, normalizeProfile, revealFullWidgets } from './profile.ts';
+import { defaultLevel, emptyLayout, feedbackUrl, normalizeProfile, recommendedWidgets, revealFullWidgets, shouldAskFeedback } from './profile.ts';
 
 const visible = (l: { id: string; visible: boolean }[]) => l.filter((w) => w.visible).map((w) => w.id);
 
@@ -18,20 +18,29 @@ describe('профиль из приветствия', () => {
     expect(p).toEqual({ scenario: 'general', level: 'basic', name: 'Аня', interests: ['Вес тела'], completedAt: '2026-10-22T10:00:00.000Z' });
   });
 
-  it('главная по сценарию: у обычного пользователя нет «Ближайшего старта»', () => {
-    expect(visible(layoutForProfile({ scenario: 'general' }))).not.toContain('competition');
-    expect(visible(layoutForProfile({ scenario: 'wrestler' }))).toContain('competition');
-    expect(layoutForProfile({ scenario: 'gym' }).map((w) => w.id)).toEqual(DEFAULT_LAYOUT.map((w) => w.id));
+  it('рекомендации по сценарию: обычному пользователю не предлагается «Ближайший старт»', () => {
+    expect(recommendedWidgets({ scenario: 'general' })).not.toContain('competition');
+    expect(recommendedWidgets({ scenario: 'wrestler' })).toContain('competition');
+    expect(recommendedWidgets({ scenario: 'gym' })).toEqual(['sleepNow', 'readiness', 'weight', 'nutrition', 'trainings', 'muscles']);
   });
 
-  it('интересы обычного пользователя выбирают виджеты', () => {
-    expect(visible(layoutForProfile({ scenario: 'general', interests: ['Сканер продуктов и КБЖУ'] }))).toEqual(['nutrition']);
-    expect(visible(layoutForProfile({ scenario: 'general', interests: ['Вес тела', 'Тренировки для себя'] }))).toEqual(['weight', 'trainings', 'muscles']);
+  it('интересы обычного пользователя выбирают рекомендации', () => {
+    expect(recommendedWidgets({ scenario: 'general', interests: ['Сканер продуктов и КБЖУ'] })).toEqual(['nutrition']);
+    expect(recommendedWidgets({ scenario: 'general', interests: ['Вес тела', 'Тренировки для себя'] })).toEqual(['weight', 'trainings', 'muscles']);
   });
 
-  it('полный режим включает скрытые виджеты', () => {
-    const l = revealFullWidgets(layoutForProfile({ scenario: 'general' }));
-    expect(visible(l)).toEqual(expect.arrayContaining(['competition', 'trainingLoad']));
+  it('главная нового пользователя пуста, полный режим включает скрытые виджеты', () => {
+    expect(visible(emptyLayout())).toEqual([]);
+    expect(emptyLayout().map((w) => w.id)).toEqual(DEFAULT_LAYOUT.map((w) => w.id));
+    expect(visible(revealFullWidgets(emptyLayout()))).toEqual(['competition', 'trainingLoad']);
+  });
+
+  it('отзыв просим через 3 дня и 5 записей, если карточку не закрыли', () => {
+    const p = { completedAt: '2026-10-20T10:00:00.000Z' };
+    expect(shouldAskFeedback(p, new Date('2026-10-22T10:00:00Z'), 50)).toBe(false);
+    expect(shouldAskFeedback(p, new Date('2026-10-23T10:00:00Z'), 4)).toBe(false);
+    expect(shouldAskFeedback(p, new Date('2026-10-23T10:00:00Z'), 5)).toBe(true);
+    expect(shouldAskFeedback({ ...p, hideFeedbackPrompt: true }, new Date('2026-11-23T10:00:00Z'), 99)).toBe(false);
   });
 
   it('ссылка на отзыв — только версия и сценарий', () => {

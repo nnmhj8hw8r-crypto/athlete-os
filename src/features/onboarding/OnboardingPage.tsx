@@ -2,14 +2,11 @@
 // демо-версия и отзыв. Ответы сохраняются только на устройстве (settings.profile); текущий вес — обычной
 // записью массы тела. Повторно открывается из «Ещё» (#/welcome).
 import { useLiveQuery } from 'dexie-react-hooks';
-import { APP_VERSION } from '../../appVersion.ts';
-import { FEEDBACK_FORM_URL } from '../../config.ts';
 import { useEffect, useState, type ReactNode } from 'react';
 import { db } from '../../data/db.ts';
 import { countAll, saveEntity, setSetting } from '../../data/repo.ts';
-import { normalizeLayout } from '../../domain/dashboard.ts';
 import { parseDecimal } from '../../domain/form.ts';
-import { defaultLevel, feedbackUrl, layoutForProfile, PROFILE_KEY, QUESTIONS, SCENARIO_META, SCENARIOS, type Profile, type Question, type Scenario } from '../../domain/profile.ts';
+import { defaultLevel, emptyLayout, PROFILE_KEY, QUESTIONS, SCENARIO_META, SCENARIOS, type Profile, type Question, type Scenario } from '../../domain/profile.ts';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
 import { navigate } from '../../ui/router.ts';
@@ -27,7 +24,7 @@ export function useFirstRun(): boolean | undefined {
     return (await countAll()) === 0 ? ('new' as const) : ('existing' as const);
   }, []);
   useEffect(() => {
-    if (state === 'existing') void saveProfile({ scenario: 'wrestler', level: 'full', completedAt: new Date().toISOString() });
+    if (state === 'existing') void saveProfile({ scenario: 'wrestler', level: 'full', completedAt: new Date().toISOString(), hideFeedbackPrompt: true });
   }, [state]);
   return state === undefined ? undefined : state === 'new';
 }
@@ -50,7 +47,6 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
   const [name, setName] = useState('');
   const [answers, setAnswers] = useState<Answers>({});
   const [busy, setBusy] = useState(false);
-  const feedback = feedbackUrl(FEEDBACK_FORM_URL, APP_VERSION, scenario ?? undefined);
 
   const weight = typeof answers.weightKg === 'string' ? parseDecimal(answers.weightKg) : undefined;
   const weightError = answers.weightKg && (weight === undefined || weight < 20 || weight > 300) ? 'Вес — число от 20 до 300' : null;
@@ -65,7 +61,10 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
     const profile: Profile = {
       scenario,
       level: sameScenario ? prev!.level : defaultLevel(scenario),
-      completedAt: new Date().toISOString(),
+      // При повторном приветствии дата первого знакомства и скрытые подсказки сохраняются.
+      completedAt: prev?.completedAt ?? new Date().toISOString(),
+      ...(prev?.hideLevelHint && { hideLevelHint: true }),
+      ...(prev?.hideFeedbackPrompt && { hideFeedbackPrompt: true }),
       ...(name.trim() && { name: name.trim().slice(0, 40) }),
       ...(text('goal') && { goal: text('goal') }),
       ...(text('sport') && { sport: text('sport') }),
@@ -73,10 +72,9 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
       ...(text('trainingsPerWeek') && { trainingsPerWeek: text('trainingsPerWeek') }),
       ...(interests && { interests }),
     };
-    // Набор карточек главной меняем только новому пользователю или при смене сценария.
-    const keepLayout = replay && sameScenario && !interests;
-    if (!keepLayout) await setSetting(LAYOUT_KEY, layoutForProfile(profile));
-    else await setSetting(LAYOUT_KEY, normalizeLayout((await db.settings.get(LAYOUT_KEY))?.value));
+    // Новому пользователю — пустая главная: виджеты он добавит сам (рекомендованные — первыми).
+    // Повторное приветствие главную не трогает, меняются только рекомендации.
+    if (!replay) await setSetting(LAYOUT_KEY, emptyLayout());
     if (weight !== undefined && !weightError) {
       const r = await saveEntity('bodyWeights', { measuredAt: new Date().toISOString(), weightKg: weight, notes: 'Из приветствия' });
       if (!r.ok) notify('Вес не сохранён — его можно добавить в «Сезоне».', 'error');
@@ -179,14 +177,11 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
           <>
             <h2>Это демо-версия</h2>
             <p>
-              Приложение в разработке: что-то может работать неидеально, а функции будут меняться. Ваш отзыв напрямую влияет на то, что появится
-              дальше.
+              Приложение в разработке: что-то может работать неидеально, а функции будут меняться. Попользуйтесь несколько дней — потом
+              приложение попросит коротко рассказать, что понравилось и чего не хватает.
             </p>
-            <a className="btn primary big" href={feedback} target="_blank" rel="noreferrer">
-              Оставить отзыв (2–3 минуты)
-            </a>
-            <p className="small muted">Отзыв можно оставить и позже: «Ещё» → «Оставить отзыв». Форма внешняя (сервис Tally), ваши записи из приложения в неё не попадают.</p>
             <ul className="onb-points">
+              <li>Главная сначала пустая: нажмите «Добавить виджеты» — подходящие вам будут сверху.</li>
               <li>Чтобы данные не потерялись, время от времени делайте резервную копию: «Ещё» → «Резервная копия».</li>
               <li>На iPhone: «Поделиться» в Safari → «На экран „Домой“» — приложение откроется как обычное.</li>
               {scenario === 'general' && (!replay || prev?.scenario !== 'general') && (

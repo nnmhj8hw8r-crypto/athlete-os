@@ -35,6 +35,8 @@ export interface Profile {
   interests?: string[];
   /** Пользователь скрыл подсказку о полном режиме на главной. */
   hideLevelHint?: boolean;
+  /** Пользователь закрыл карточку «Оставьте отзыв и поделитесь» (или он из версий до 0.9.1). */
+  hideFeedbackPrompt?: boolean;
   /** Когда пройдено приветствие (UTC ISO). */
   completedAt: string;
 }
@@ -89,15 +91,20 @@ const BY_INTEREST: Record<(typeof INTERESTS)[number], readonly WidgetId[]> = {
   'Вес тела': ['weight'],
 };
 
-/** Набор виджетов для нового пользователя: порядок по умолчанию, включены — по сценарию и интересам. */
-export function layoutForProfile(p: Pick<Profile, 'scenario' | 'interests'>): WidgetConfig[] {
+/** Виджеты «Рекомендуем для вас» — по сценарию, у «для себя» — по выбранным интересам. Порядок по умолчанию. */
+export function recommendedWidgets(p: Pick<Profile, 'scenario' | 'interests'>): WidgetId[] {
   const on = new Set<WidgetId>(ON[p.scenario]);
   if (p.scenario === 'general' && p.interests?.length) {
     on.clear();
     for (const i of p.interests) for (const w of BY_INTEREST[i as keyof typeof BY_INTEREST] ?? []) on.add(w);
     if (on.size === 0) for (const w of ON.general) on.add(w);
   }
-  return DEFAULT_LAYOUT.map((w) => ({ ...w, visible: on.has(w.id) }));
+  return DEFAULT_LAYOUT.map((w) => w.id).filter((id) => on.has(id));
+}
+
+/** Главная нового пользователя пуста — виджеты он добавляет сам, рекомендованные предлагаются первыми. */
+export function emptyLayout(): WidgetConfig[] {
+  return DEFAULT_LAYOUT.map((w) => ({ ...w, visible: false }));
 }
 
 /** При переходе в полный режим включаем скрытые им виджеты, чтобы было видно, что открылось. */
@@ -124,11 +131,24 @@ export function normalizeProfile(raw: unknown): Profile | null {
     if (v) p[k] = v;
   }
   if (r.hideLevelHint === true) p.hideLevelHint = true;
+  if (r.hideFeedbackPrompt === true) p.hideFeedbackPrompt = true;
   if (Array.isArray(r.interests)) {
     const list = r.interests.filter((i): i is string => typeof i === 'string' && (INTERESTS as readonly string[]).includes(i));
     if (list.length) p.interests = list;
   }
   return p;
+}
+
+// ---------- Просьба об отзыве ----------
+
+/** Отзыв просим не при знакомстве, а когда человек попользовался: прошло 3 дня и есть хотя бы 5 записей. */
+export const FEEDBACK_PROMPT_DAYS = 3;
+export const FEEDBACK_PROMPT_RECORDS = 5;
+
+export function shouldAskFeedback(p: Pick<Profile, 'completedAt' | 'hideFeedbackPrompt'>, now: Date, records: number): boolean {
+  if (p.hideFeedbackPrompt) return false;
+  const days = (now.getTime() - Date.parse(p.completedAt)) / 86_400_000;
+  return days >= FEEDBACK_PROMPT_DAYS && records >= FEEDBACK_PROMPT_RECORDS;
 }
 
 /** Адрес формы отзыва с версией и сценарием (без имени, веса и записей) — чтобы разбирать ответы по группам. */
