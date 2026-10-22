@@ -122,18 +122,85 @@ export const WORKOUT_TYPES = ['judo', 'sambo', 'gym', 'other'] as const;
 export const workoutTypeSchema = z.enum(WORKOUT_TYPES);
 export type WorkoutType = z.infer<typeof workoutTypeSchema>;
 
+/**
+ * Формат занятия (v0.5): обычная тренировка по упражнениям, тренировка на ковре
+ * (разминка, техника, немного борьбы) или день борьбы (встречи в партере и в стойке).
+ */
+export const WORKOUT_FORMATS = ['exercises', 'mat', 'fight'] as const;
+export const workoutFormatSchema = z.enum(WORKOUT_FORMATS);
+export type WorkoutFormat = z.infer<typeof workoutFormatSchema>;
+
+/**
+ * Что измеряется в подходе упражнения:
+ * weight_reps — вес × повторения, reps — повторения (свой вес), time — время,
+ * distance_time — расстояние и время, rounds — встречи/раунды по времени, check — только «сделано».
+ */
+export const EXERCISE_METRICS = ['weight_reps', 'reps', 'time', 'distance_time', 'rounds', 'check'] as const;
+export const exerciseMetricSchema = z.enum(EXERCISE_METRICS);
+export type ExerciseMetric = z.infer<typeof exerciseMetricSchema>;
+
+export const EXERCISE_GROUPS = [
+  'warmup',
+  'cardio',
+  'chest',
+  'back',
+  'shoulders',
+  'biceps',
+  'triceps',
+  'forearms',
+  'legs',
+  'glutes',
+  'abs',
+  'fullbody',
+  'wrestling',
+  'other',
+] as const;
+export const exerciseGroupSchema = z.enum(EXERCISE_GROUPS);
+export type ExerciseGroup = z.infer<typeof exerciseGroupSchema>;
+
+/** Мышцы для «человечка» на иконке упражнения (src/ui/BodyFigure.tsx). */
+export const MUSCLES = [
+  'chest',
+  'delts',
+  'biceps',
+  'triceps',
+  'forearms',
+  'abs',
+  'obliques',
+  'quads',
+  'adductors',
+  'calves',
+  'traps',
+  'lats',
+  'rearDelts',
+  'lowerBack',
+  'glutes',
+  'hamstrings',
+] as const;
+export const muscleSchema = z.enum(MUSCLES);
+export type Muscle = z.infer<typeof muscleSchema>;
+
 export const workoutSetSchema = z.object({
   reps: z.number().int('Целое число').min(0).max(1000).optional(),
   weightKg: z.number().finite().min(0, 'Не меньше 0').max(1000).optional(),
+  /** Длительность подхода или встречи, с (v0.5). */
+  durationSec: z.number().int().min(0).max(86400).optional(),
+  /** Расстояние, км (v0.5). */
+  distanceKm: z.number().finite().min(0).max(1000).optional(),
   restSec: z.number().int().min(0).max(3600).optional(),
   rpe: z.number().min(1, 'RPE от 1 до 10').max(10, 'RPE от 1 до 10').optional(),
+  /** Подход отмечен выполненным (галочка на экране тренировки). */
+  done: z.boolean().optional(),
   notes: optionalText(500),
 });
 export type WorkoutSet = z.infer<typeof workoutSetSchema>;
 
 export const workoutExerciseSchema = z.object({
+  /** id из таблицы exercises или встроенного каталога (lib:…). */
   exerciseId: id,
   name: text(200),
+  /** Снимок типа измерения на момент тренировки. Нет — вес × повторения (записи до v0.5). */
+  metric: exerciseMetricSchema.optional(),
   notes: optionalText(1000),
   sets: z.array(workoutSetSchema).max(100),
 });
@@ -143,12 +210,17 @@ export const workoutSchema = z.object({
   id,
   startAt: isoDateTime,
   type: workoutTypeSchema,
+  format: workoutFormatSchema.optional(),
   title: text(200, 'Укажите название или цель'),
   durationMin: z.number().int('Целое число минут').min(1, 'Больше нуля').max(1440, 'Не больше 24 часов').optional(),
+  /** Над чем работал (тренировка на ковре): техника, связки. */
+  focus: optionalText(1000),
   notes: optionalText(5000),
   rpe: z.number().min(1, 'От 1 до 10').max(10, 'От 1 до 10').optional(),
   exercises: z.array(workoutExerciseSchema).max(100),
   templateId: id.optional(),
+  programId: id.optional(),
+  scheduleId: id.optional(),
   ...timestamps,
 });
 export type Workout = z.infer<typeof workoutSchema>;
@@ -156,11 +228,18 @@ export type Workout = z.infer<typeof workoutSchema>;
 export const exerciseSchema = z.object({
   id,
   name: text(200, 'Укажите название упражнения'),
+  /** Группа в каталоге (v0.5). Нет — «Другое». */
+  group: exerciseGroupSchema.optional(),
+  metric: exerciseMetricSchema.optional(),
+  muscles: z.array(muscleSchema).max(16).optional(),
+  musclesSecondary: z.array(muscleSchema).max(16).optional(),
+  /** Заметки о технике выполнения. */
   notes: optionalText(1000),
   ...timestamps,
 });
 export type Exercise = z.infer<typeof exerciseSchema>;
 
+/** Шаблоны до v0.5. При обновлении базы до версии 3 переносятся в программы; таблица хранится для копий. */
 export const workoutTemplateSchema = z.object({
   id,
   name: text(200, 'Укажите название шаблона'),
@@ -180,6 +259,91 @@ export const workoutTemplateSchema = z.object({
   ...timestamps,
 });
 export type WorkoutTemplate = z.infer<typeof workoutTemplateSchema>;
+
+/** Пункт программы: упражнение и план («2 × 8–12», «10 минут», «6 встреч по 3 мин»). */
+export const programItemSchema = z.object({
+  exerciseId: id,
+  name: text(200),
+  metric: exerciseMetricSchema.optional(),
+  sets: z.number().int('Целое число').min(1, 'Хотя бы 1').max(50, 'Не больше 50'),
+  repsMin: z.number().int().min(0).max(1000).optional(),
+  repsMax: z.number().int().min(0).max(1000).optional(),
+  weightKg: z.number().finite().min(0).max(1000).optional(),
+  durationSec: z.number().int().min(0).max(86400).optional(),
+  distanceKm: z.number().finite().min(0).max(1000).optional(),
+  restSec: z.number().int().min(0).max(3600).optional(),
+  notes: optionalText(1000),
+});
+export type ProgramItem = z.infer<typeof programItemSchema>;
+
+export const PROGRAM_ICONS = ['auto', 'gym', 'mat', 'fight', 'run', 'bolt', 'letter'] as const;
+export type ProgramIcon = (typeof PROGRAM_ICONS)[number];
+export const PROGRAM_COLORS = ['blue', 'red', 'green', 'orange', 'purple', 'gray'] as const;
+export type ProgramColor = (typeof PROGRAM_COLORS)[number];
+
+/** Программа (план тренировки): «Ковёр — Пн, Ср, Пт», «Качалка — Вт, Чт», «Скоростно-силовая». */
+export const programSchema = z.object({
+  id,
+  name: text(100, 'Укажите название программы'),
+  type: workoutTypeSchema,
+  format: workoutFormatSchema,
+  icon: z.enum(PROGRAM_ICONS),
+  color: z.enum(PROGRAM_COLORS),
+  /** Фото обложки из таблицы photos (необязательно). */
+  coverPhotoId: id.optional(),
+  /** Дни недели для подписи (1 — понедельник … 7 — воскресенье). Только подпись, не расписание. */
+  weekdays: z.array(z.number().int().min(1).max(7)).max(7).optional(),
+  notes: optionalText(5000),
+  items: z.array(programItemSchema).max(100),
+  ...timestamps,
+});
+export type Program = z.infer<typeof programSchema>;
+
+export const SCHEDULE_SLOTS = ['morning', 'day', 'evening'] as const;
+export const scheduleSlotSchema = z.enum(SCHEDULE_SLOTS);
+export type ScheduleSlot = z.infer<typeof scheduleSlotSchema>;
+
+/** План недели: на конкретный день и время суток — программа. */
+export const scheduleEntrySchema = z.object({
+  id,
+  date: dateKey,
+  slot: scheduleSlotSchema,
+  programId: id,
+  notes: optionalText(500),
+  ...timestamps,
+});
+export type ScheduleEntry = z.infer<typeof scheduleEntrySchema>;
+
+// ---------- Замеры и тесты ----------
+
+export const TEST_UNITS = ['reps', 'sec', 'cm', 'kg', 'm', 'other'] as const;
+export const testUnitSchema = z.enum(TEST_UNITS);
+export type TestUnit = z.infer<typeof testUnitSchema>;
+
+/** Свой тест или замер пользователя (встроенные — в src/domain/fitnessTests.ts). */
+export const testDefSchema = z.object({
+  id,
+  name: text(100, 'Укажите название'),
+  unit: testUnitSchema,
+  /** Подпись единицы для unit = 'other'. */
+  unitLabel: optionalText(20),
+  /** true — лучше больше (подтягивания), false — лучше меньше (время на канате). */
+  higherIsBetter: z.boolean(),
+  notes: optionalText(1000),
+  ...timestamps,
+});
+export type TestDef = z.infer<typeof testDefSchema>;
+
+export const testResultSchema = z.object({
+  id,
+  /** id встроенного (lib:…) или своего теста. */
+  testId: id,
+  date: dateKey,
+  value: z.number().finite('Введите число').min(0, 'Не меньше 0').max(100000, 'Слишком большое значение'),
+  notes: optionalText(1000),
+  ...timestamps,
+});
+export type TestResult = z.infer<typeof testResultSchema>;
 
 // ---------- Сон и восстановление ----------
 
@@ -313,6 +477,10 @@ export const ENTITY_SCHEMAS = {
   workouts: workoutSchema,
   exercises: exerciseSchema,
   workoutTemplates: workoutTemplateSchema,
+  programs: programSchema,
+  schedule: scheduleEntrySchema,
+  testDefs: testDefSchema,
+  testResults: testResultSchema,
   sleep: sleepEntrySchema,
   competitions: competitionSchema,
   bodyWeights: bodyWeightSchema,
@@ -332,7 +500,11 @@ export const TABLE_LABELS: Record<TableName, string> = {
   meals: 'Записи питания',
   workouts: 'Тренировки',
   exercises: 'Упражнения',
-  workoutTemplates: 'Шаблоны тренировок',
+  workoutTemplates: 'Шаблоны тренировок (до v0.5)',
+  programs: 'Программы тренировок',
+  schedule: 'План недели',
+  testDefs: 'Свои тесты и замеры',
+  testResults: 'Результаты тестов',
   sleep: 'Сон и восстановление',
   competitions: 'Соревнования',
   bodyWeights: 'Масса тела',

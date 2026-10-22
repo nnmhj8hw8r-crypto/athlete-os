@@ -6,7 +6,7 @@ import { MEAL_TYPE_LABEL, sumNutrients, unitLabel } from './nutrition.ts';
 import type { BodyWeight, Competition, MealEntry, SleepEntry, Workout } from './schemas.ts';
 import { RATING_FIELDS, RATING_META, estimatedSleepMinutes, timeInBedMinutes } from './sleep.ts';
 import { type DateKey, formatDateKey, formatDateTime, formatDuration, formatTime, toDateKey } from './time.ts';
-import { WORKOUT_TYPE_LABEL } from './training.ts';
+import { formatClock, WORKOUT_FORMAT_LABEL, WORKOUT_TYPE_LABEL } from './training.ts';
 
 export const SUMMARY_SECTIONS = ['nutrition', 'training', 'recovery', 'competition'] as const;
 export type SummarySection = (typeof SUMMARY_SECTIONS)[number];
@@ -113,10 +113,12 @@ function trainingBlock(workouts: readonly Workout[], o: SummaryOptions): string[
   for (const w of list) {
     const meta = [
       WORKOUT_TYPE_LABEL[w.type],
+      w.format && w.format !== 'exercises' ? WORKOUT_FORMAT_LABEL[w.format].toLowerCase() : null,
       w.durationMin !== undefined ? formatDuration(w.durationMin) : null,
       w.rpe !== undefined ? `тяжесть ${w.rpe}/10` : null,
     ].filter(Boolean);
     lines.push(`### ${formatDateTime(w.startAt)} — ${w.title} (${meta.join(', ')})`);
+    if (w.focus) lines.push(`Над чем работал: ${w.focus}`);
     if (w.notes) lines.push(`Заметки: ${w.notes}`);
     for (const e of w.exercises) {
       const sets = e.sets
@@ -124,6 +126,9 @@ function trainingBlock(workouts: readonly Workout[], o: SummaryOptions): string[
           const parts = [
             s.weightKg !== undefined ? `${r1(s.weightKg)} кг` : null,
             s.reps !== undefined ? `×${s.reps}` : null,
+            s.distanceKm !== undefined ? `${r1(s.distanceKm)} км` : null,
+            s.durationSec !== undefined ? formatClock(s.durationSec) : null,
+            s.done && e.metric === 'check' ? 'выполнено' : null,
             s.rpe !== undefined ? `RPE ${s.rpe}` : null,
           ].filter(Boolean);
           return parts.length ? parts.join(' ') : 'подход';

@@ -6,7 +6,9 @@ import {
   TABLE_NAMES,
   type EntityOf,
   type TableName,
+  workoutTemplateSchema,
 } from './schemas.ts';
+import { programFromTemplate } from './training.ts';
 import { toLocalInputValue } from './time.ts';
 
 export const BACKUP_FORMAT = 'personal-athlete-os-backup';
@@ -14,7 +16,7 @@ export const BACKUP_FORMAT = 'personal-athlete-os-backup';
  * Версия структуры данных. Совпадает с версией схемы IndexedDB (src/data/db.ts).
  * При изменении структуры: увеличить, добавить миграцию в migrateBackupData и в db.ts.
  */
-export const DATA_SCHEMA_VERSION = 2;
+export const DATA_SCHEMA_VERSION = 3;
 export const MAX_BACKUP_BYTES = 50 * 1024 * 1024;
 const MAX_REPORTED_ERRORS = 20;
 
@@ -50,6 +52,17 @@ const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'obj
 const MIGRATIONS: Record<number, (data: Record<string, unknown>) => Record<string, unknown>> = {
   // 1 → 2: появилась таблица воды; расширенные нутриенты необязательны, старые записи не меняются.
   1: (data) => ({ ...data, water: data.water ?? [] }),
+  // 2 → 3: программы, план недели, тесты. Шаблоны копируются в программы, как при обновлении базы.
+  2: (data) => {
+    const templates = Array.isArray(data.workoutTemplates) ? data.workoutTemplates : [];
+    const programs =
+      data.programs ??
+      templates.flatMap((t) => {
+        const r = workoutTemplateSchema.safeParse(t);
+        return r.success ? [programFromTemplate(r.data)] : [];
+      });
+    return { ...data, programs, schedule: data.schedule ?? [], testDefs: data.testDefs ?? [], testResults: data.testResults ?? [] };
+  },
 };
 
 /** Приведение данных старых версий к текущей: шаги применяются по очереди. */

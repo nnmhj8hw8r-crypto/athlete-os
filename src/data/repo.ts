@@ -5,6 +5,7 @@ import type { Table } from 'dexie';
 import { APP_VERSION } from '../appVersion.ts';
 import { type Backup, type BackupData, createBackup } from '../domain/backup.ts';
 import { type FieldErrors, toFieldErrors } from '../domain/form.ts';
+import { EXERCISE_LIBRARY } from '../domain/exerciseLibrary.ts';
 import { newId } from '../domain/ids.ts';
 import { ENTITY_SCHEMAS, TABLE_NAMES, type EntityOf, type Exercise, type TableName } from '../domain/schemas.ts';
 import { db } from './db.ts';
@@ -12,6 +13,15 @@ import { db } from './db.ts';
 export type EntityTableName = Exclude<TableName, 'settings'>;
 type Meta = 'id' | 'createdAt' | 'updatedAt';
 export type DraftOf<K extends EntityTableName> = Omit<EntityOf<K>, Meta>;
+
+/** Запись без служебных полей — черновик для повторного сохранения через saveEntity. */
+export function withoutMeta<T extends { id: string; createdAt: string; updatedAt: string }>(e: T): Omit<T, Meta> {
+  const copy: Partial<T> = { ...e };
+  delete copy.id;
+  delete copy.createdAt;
+  delete copy.updatedAt;
+  return copy as Omit<T, Meta>;
+}
 
 export type SaveResult<T> = { ok: true; value: T } | { ok: false; errors: FieldErrors };
 
@@ -55,12 +65,17 @@ export async function deleteEntity(name: EntityTableName, id: string): Promise<v
   await table(name).delete(id);
 }
 
-/** Находит упражнение по названию (без учёта регистра) или создаёт новое. */
-export async function ensureExercise(name: string): Promise<Exercise> {
+/**
+ * Находит упражнение по названию (без учёта регистра): сначала своё, затем во встроенном каталоге;
+ * иначе создаёт своё.
+ */
+export async function ensureExercise(name: string): Promise<Pick<Exercise, 'id' | 'name' | 'metric'>> {
   const clean = name.trim().replace(/\s+/g, ' ');
   const lower = clean.toLocaleLowerCase('ru-RU');
   const found = await db.exercises.filter((e) => e.name.toLocaleLowerCase('ru-RU') === lower).first();
   if (found) return found;
+  const lib = EXERCISE_LIBRARY.find((e) => e.name.toLocaleLowerCase('ru-RU') === lower);
+  if (lib) return lib;
   const r = await saveEntity('exercises', { name: clean });
   if (!r.ok) throw new Error(Object.values(r.errors)[0] ?? 'Некорректное название упражнения');
   return r.value;

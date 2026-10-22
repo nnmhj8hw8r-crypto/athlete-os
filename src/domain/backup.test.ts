@@ -17,6 +17,10 @@ function fullData(): BackupData {
     supplements: [{ ...drafts.supplements, id: 'p1', ...meta }],
     sources: [{ ...drafts.sources, id: 'r1', ...meta }],
     water: [{ ...drafts.water, id: 'wa1', ...meta }],
+    programs: [{ ...drafts.programs, id: 'pr1', ...meta }],
+    schedule: [{ ...drafts.schedule, id: 'sc1', ...meta }],
+    testDefs: [{ ...drafts.testDefs, id: 'td1', ...meta }],
+    testResults: [{ ...drafts.testResults, id: 'tr1', ...meta }],
     settings: [{ key: 'pendingSleepStart', value: '2026-10-20T20:30:00.000Z' }],
   };
 }
@@ -33,7 +37,7 @@ describe('parseBackup', () => {
     const r = parseBackup(JSON.stringify(backup));
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.total).toBe(12);
+      expect(r.total).toBe(16);
       expect(r.counts.meals).toBe(1);
       expect(r.backup.data).toEqual(backup.data);
     }
@@ -57,9 +61,24 @@ describe('parseBackup', () => {
     );
     expect(r.ok).toBe(true);
     if (r.ok) {
-      expect(r.backup.schemaVersion).toBe(2);
+      expect(r.backup.schemaVersion).toBe(DATA_SCHEMA_VERSION);
       expect(r.backup.data.water).toEqual([]);
       expect(r.backup.data.meals[0]).toEqual(v1meal);
+    }
+  });
+
+  it('копия версии 2 (до программ): шаблоны превращаются в программы', () => {
+    const tpl = { ...drafts.workoutTemplates, id: 't1', ...meta };
+    const r = parseBackup(
+      JSON.stringify({ format: BACKUP_FORMAT, schemaVersion: 2, exportedAt: meta.createdAt, data: { workoutTemplates: [tpl] } }),
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.backup.data.workoutTemplates).toEqual([tpl]);
+      expect(r.backup.data.programs).toHaveLength(1);
+      expect(r.backup.data.programs[0]).toMatchObject({ id: 't1', name: 'Тестовый шаблон', format: 'exercises', items: [{ sets: 3 }] });
+      expect(r.backup.data.schedule).toEqual([]);
+      expect(r.backup.data.testResults).toEqual([]);
     }
   });
 

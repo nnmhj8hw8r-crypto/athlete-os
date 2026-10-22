@@ -7,12 +7,17 @@
 // 3. Увеличить DATA_SCHEMA_VERSION в src/domain/backup.ts и добавить миграцию копий.
 // Подробнее — docs/ARCHITECTURE.md, раздел «Версии схемы данных».
 import Dexie, { type EntityTable } from 'dexie';
+import { programFromTemplate } from '../domain/training.ts';
 import type {
   BodyWeight,
   Competition,
   Exercise,
   Food,
   KnowledgeSource,
+  Program,
+  ScheduleEntry,
+  TestDef,
+  TestResult,
   MealEntry,
   Setting,
   SleepEntry,
@@ -22,6 +27,7 @@ import type {
   Workout,
   WorkoutTemplate,
 } from '../domain/schemas.ts';
+import type { PhotoRecord } from './photoTypes.ts';
 
 export type AthleteDb = Dexie & {
   foods: EntityTable<Food, 'id'>;
@@ -35,13 +41,19 @@ export type AthleteDb = Dexie & {
   supplements: EntityTable<Supplement, 'id'>;
   sources: EntityTable<KnowledgeSource, 'id'>;
   water: EntityTable<WaterEntry, 'id'>;
+  programs: EntityTable<Program, 'id'>;
+  schedule: EntityTable<ScheduleEntry, 'id'>;
+  testDefs: EntityTable<TestDef, 'id'>;
+  testResults: EntityTable<TestResult, 'id'>;
+  /** Фото прогресса и обложки программ (Blob). Не входит в резервную копию JSON — см. src/data/photos.ts. */
+  photos: EntityTable<PhotoRecord, 'id'>;
   settings: EntityTable<Setting, 'key'>;
 };
 
 export const DB_NAME = 'personal-athlete-os';
 
 /** Индексы таблиц версии 1. Первое поле — первичный ключ. */
-const SCHEMA_V1: Record<Exclude<TableName, 'water'>, string> = {
+const SCHEMA_V1: Record<Exclude<TableName, 'water' | 'programs' | 'schedule' | 'testDefs' | 'testResults'>, string> = {
   foods: 'id, name, barcode, source, externalId, updatedAt',
   meals: 'id, date, foodId',
   workouts: 'id, startAt, type, templateId',
@@ -62,6 +74,21 @@ export function openDb(name = DB_NAME): AthleteDb {
   // Версия 2: таблица выпитой воды; у продуктов и записей питания появились необязательные
   // расширенные нутриенты (extra) — старые записи остаются корректными без преобразования.
   db.version(2).stores({ water: 'id, date' });
+  // Версия 3 (v0.5, «Тренировки»): программы, план недели, тесты, фото. Новые поля упражнений
+  // и подходов необязательны. Старые шаблоны копируются в программы с тем же id (сами шаблоны остаются).
+  db.version(3)
+    .stores({
+      programs: 'id, name',
+      schedule: 'id, date, programId',
+      testDefs: 'id, name',
+      testResults: 'id, testId, date',
+      photos: 'id, kind, date',
+      workouts: 'id, startAt, type, templateId, programId',
+    })
+    .upgrade(async (tx) => {
+      const templates = (await tx.table('workoutTemplates').toArray()) as WorkoutTemplate[];
+      if (templates.length) await tx.table('programs').bulkPut(templates.map(programFromTemplate));
+    });
   return db;
 }
 

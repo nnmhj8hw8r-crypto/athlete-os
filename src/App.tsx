@@ -10,6 +10,10 @@ import { FoodsPage } from './features/nutrition/FoodsPage.tsx';
 import { NutritionPage } from './features/nutrition/NutritionPage.tsx';
 import { RecoveryPage } from './features/recovery/RecoveryPage.tsx';
 import { SeasonPage } from './features/season/SeasonPage.tsx';
+import { ExercisePage } from './features/training/ExercisePage.tsx';
+import { ProgramPage } from './features/training/ProgramPage.tsx';
+import { SessionPage } from './features/training/SessionPage.tsx';
+import { TestPage } from './features/training/TestPage.tsx';
 import { TrainingPage } from './features/training/TrainingPage.tsx';
 import { FeedbackProvider } from './ui/feedback.tsx';
 import { Icons } from './ui/icons.tsx';
@@ -29,6 +33,10 @@ const PAGES: Record<string, (r: Route) => ReactNode> = {
   '/nutrition': (r) => <NutritionPage route={r} />,
   '/nutrition/foods': () => <FoodsPage />,
   '/training': (r) => <TrainingPage route={r} />,
+  '/training/program': (r) => <ProgramPage route={r} />,
+  '/training/session': (r) => <SessionPage route={r} />,
+  '/training/exercise': (r) => <ExercisePage route={r} />,
+  '/training/test': (r) => <TestPage route={r} />,
   '/recovery': (r) => <RecoveryPage route={r} />,
   '/season': (r) => <SeasonPage route={r} />,
   '/more': () => <MorePage />,

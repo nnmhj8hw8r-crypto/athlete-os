@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { DATA_SCHEMA_VERSION, parseBackup } from '../domain/backup.ts';
 import { TABLE_NAMES } from '../domain/schemas.ts';
 import { drafts } from '../test/fixtures.ts';
-import { db } from './db.ts';
+import Dexie from 'dexie';
+import { db, openDb } from './db.ts';
 import {
   type EntityTableName,
   countAll,
@@ -122,6 +123,24 @@ describe('резервная копия', () => {
 
     await importBackup(backup, 'merge');
     expect(await db.foods.count()).toBe(2);
+  });
+
+  it('обновление базы 2 → 3 переносит шаблоны в программы', async () => {
+    const name = 'upgrade-test-db';
+    const old = new Dexie(name);
+    old.version(1).stores({ workoutTemplates: 'id, name', workouts: 'id, startAt, type, templateId' });
+    old.version(2).stores({ water: 'id, date' });
+    const tpl = { ...drafts.workoutTemplates, id: 't-old', createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-01T00:00:00.000Z' };
+    await old.table('workoutTemplates').put(tpl);
+    old.close();
+
+    const upgraded = openDb(name);
+    const programs = await upgraded.programs.toArray();
+    expect(programs).toHaveLength(1);
+    expect(programs[0]).toMatchObject({ id: 't-old', name: 'Тестовый шаблон', items: [{ exerciseId: 'ex-1', sets: 3 }] });
+    expect(await upgraded.workoutTemplates.count()).toBe(1);
+    upgraded.close();
+    await Dexie.delete(name);
   });
 
   it('схема IndexedDB совпадает с версией формата копии', async () => {

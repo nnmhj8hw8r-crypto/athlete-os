@@ -2,15 +2,32 @@
   "version": "0.0.1",
   "configurations": [
     {
+      "name": "web",
+      "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
+      "runtimeArgs": [
+        "node_modules/vite/bin/vite.js",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
+    },
+    {
       "name": "app",
       "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
-      "runtimeArgs": ["--env-file-if-exists=.env", "server/index.ts"],
+      "runtimeArgs": [
+        "--env-file-if-exists=.env",
+        "server/index.ts"
+      ],
       "port": 8787
     },
     {
       "name": "pages-preview",
       "runtimeExecutable": "cmd.exe",
-      "runtimeArgs": ["/c", "set BASE_PATH=/athlete-os/&& npm run build && npx vite preview --port 4174 --strictPort"],
+      "runtimeArgs": [
+        "/c",
+        "set BASE_PATH=/athlete-os/&& npm run build && npx vite preview --port 4174 --strictPort"
+      ],
       "port": 4174
     }
   ]

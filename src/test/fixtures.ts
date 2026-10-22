@@ -60,4 +60,16 @@ export const drafts: { [K in EntityTableName]: DraftOf<K> } = {
   supplements: { name: 'Тестовая добавка', dose: 5, doseUnit: 'г', purpose: 'проверка формы' },
   sources: { title: 'Тестовый источник', checkedDate: '2026-10-21', sourceType: 'other' },
   water: { date: '2026-10-21', ml: 250 },
+  programs: {
+    name: 'Тестовая программа',
+    type: 'gym',
+    format: 'exercises',
+    icon: 'auto',
+    color: 'blue',
+    weekdays: [2, 4],
+    items: [{ exerciseId: 'lib:bench-press', name: 'Жим лёжа со штангой', metric: 'weight_reps', sets: 2, repsMin: 8, repsMax: 12 }],
+  },
+  schedule: { date: '2026-10-21', slot: 'evening', programId: 'pr-1' },
+  testDefs: { name: 'Тестовый замер', unit: 'reps', higherIsBetter: true },
+  testResults: { testId: 'lib:pullups-max', date: '2026-10-21', value: 15 },
 };

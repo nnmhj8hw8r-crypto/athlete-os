@@ -95,6 +95,9 @@ export function BackupPage() {
 
       <Card title="Экспорт">
         <p className="small muted">Все разделы в одном JSON-файле. Файл содержит личные данные о здоровье — не публикуйте его.</p>
+        <p className="small muted">
+          Фото прогресса и обложки программ в копию не входят (слишком большой файл) — их оригиналы храните в галерее телефона.
+        </p>
         <button type="button" className="btn primary" onClick={doExport} disabled={exporting}>
           {exporting ? 'Подготовка…' : 'Скачать резервную копию'}
         </button>

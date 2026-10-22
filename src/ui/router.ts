@@ -1,6 +1,7 @@
 // Минимальный маршрутизатор на hash (#/nutrition?add=1).
 // Hash-адреса не требуют настройки сервера и одинаково работают офлайн через Service Worker.
 import { useSyncExternalStore } from 'react';
+import { afterModalHistory } from './modalStack.ts';
 
 export interface Route {
   path: string;
@@ -25,12 +26,14 @@ export function useRoute(): Route {
 
 export function navigate(to: string, replace = false) {
   const target = `#${to}`;
-  if (replace) {
-    history.replaceState(null, '', target);
-    window.dispatchEvent(new HashChangeEvent('hashchange'));
-  } else {
-    window.location.hash = to;
-  }
+  afterModalHistory(() => {
+    if (replace) {
+      history.replaceState(null, '', target);
+      window.dispatchEvent(new HashChangeEvent('hashchange'));
+    } else {
+      window.location.hash = to;
+    }
+  });
 }
 
 /** Убирает параметр из адреса (например, ?add=1 после открытия формы), не создавая запись истории. */

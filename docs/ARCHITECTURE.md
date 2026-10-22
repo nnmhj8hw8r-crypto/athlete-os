@@ -66,9 +66,13 @@
 |---|---|---|
 | `foods` | продукты и рецепты | `basis` (`g`/`ml`), `per100`, `source` (`manual`/`perek`/`recipe`), `recipe?` |
 | `meals` | записи питания | `date` (YYYY-MM-DD по Москве), `mealType`, `amount`, снимок `per100`, `nutrients` |
-| `workouts` | тренировки | `startAt` (UTC ISO), `type`, `exercises[].sets[]` |
-| `exercises` | справочник упражнений | `name` |
-| `workoutTemplates` | шаблоны | `exercises[].plannedSets` |
+| `workouts` | тренировки | `startAt` (UTC ISO), `type`, `format?`, `focus?`, `programId?`, `scheduleId?`, `exercises[].metric?`, `exercises[].sets[]` (`reps`, `weightKg`, `durationSec`, `distanceKm`, `restSec`, `done`) |
+| `exercises` | свои упражнения каталога | `name`, `group?`, `metric?`, `muscles?` (встроенные — в коде, `lib:…`) |
+| `workoutTemplates` | шаблоны до v0.5 (только для старых копий) | `exercises[].plannedSets` |
+| `programs` | программы (v0.5) | `format`, `type`, `icon`, `color`, `coverPhotoId?`, `weekdays?`, `items[]` |
+| `schedule` | план недели | `date`, `slot` (утро/день/вечер), `programId` |
+| `testDefs` / `testResults` | свои тесты / результаты (встроенные тесты — в коде) | `unit`, `higherIsBetter` / `testId`, `date`, `value` |
+| `photos` | фото прогресса и обложки (не входит в копию) | `kind`, `date`, `blob`, `thumb` |
 | `sleep` | сон и самочувствие | `bedtime`, `wakeTime`, оценки 1–5 |
 | `competitions` | соревнования | `sport`, `weightCategory`, `startAt`, `weighInAt`, `targetWeightKg?`, `status` |
 | `bodyWeights` | масса тела | `measuredAt`, `weightKg` |
@@ -82,8 +86,8 @@
 
 ### Версии схемы данных
 
-- Текущая версия — 1 (`db.version(1)` в `src/data/db.ts`, `DATA_SCHEMA_VERSION` в `src/domain/backup.ts`;
-  их совпадение проверяет тест).
+- Текущая версия — 3 (`db.version(3)` в `src/data/db.ts`, `DATA_SCHEMA_VERSION` в `src/domain/backup.ts`;
+  их совпадение проверяет тест). 2 — вода и расширенные нутриенты, 3 — тренировки v0.5 (шаблоны → программы).
 - Изменение структуры: добавить `db.version(2).stores({...}).upgrade(tx => ...)`, не меняя версию 1;
   увеличить `DATA_SCHEMA_VERSION`; добавить шаг в `migrateBackupData`, чтобы старые копии импортировались.
 - Резервная копия более новой версии, чем приложение, отклоняется.
@@ -167,6 +171,28 @@ Perek.us (если сервер с ключом доступен) → Open Food 
 - Обновление: новая сборка подхватывается автоматически при следующем открытии (autoUpdate).
 - Сервер раздаёт файлы сборки с диска при каждом запросе, отсутствующий файл → 404 (а не index.html).
 
+### Тренировки v0.5: модули
+
+- `src/domain/exerciseLibrary.ts` — встроенный каталог (85 упражнений), `buildCatalog`, `searchCatalog`.
+- `src/domain/training.ts` — подписи, `formatPlanItem`, `formatSet`, `parseClock`, история упражнения,
+  `workoutFromProgram`, `cleanupWorkout` (только подходы с галочкой), миграция шаблонов `programFromTemplate`.
+- `src/domain/fitnessTests.ts` — встроенные тесты, форматирование и разбор значений, лучший/последний результат.
+- `src/data/training.ts` — черновик текущей тренировки (`settings.activeWorkout`), заметки о технике
+  (`settings.exerciseNotes`), копирование плана недели. `src/data/photos.ts` — уменьшение и хранение фото.
+- `src/ui/BodyFigure.tsx` — SVG-«человечек» и круглая иконка упражнения.
+- `src/features/training/`: `TrainingPage` (вкладки, «Начать», журнал), `WeekTab`, `ExercisesTab`,
+  `ExercisePage`, `ProgramPage` (+ правка пункта), `ProgramDialog`, `SessionPage` (обзор, экран упражнения,
+  таймер отдыха, завершение), `MeasureTab` (тесты, фото), `TestPage`, `catalog.tsx` (каталог, выбор
+  упражнения, своё упражнение, обложки), `useSession.ts`.
+- Маршруты: `/training?tab=…`, `/training/program?id=`, `/training/session?ex=`, `/training/exercise?id=`,
+  `/training/test?id=`. Номер упражнения в адресе — жест «назад» ведёт к обзору тренировки.
+
+### Окна (v0.4.1)
+
+`src/ui/modalStack.ts` — блокировка прокрутки страницы под окном и запись окна в истории браузера (жест
+«назад» закрывает окно). `Modal` в `src/ui/components.tsx` — смахивание вниз (порог 90 px), фокус на поле
+с `data-autofocus`. `navigate()` ждёт, пока записи закрытых окон уберутся из истории.
+
 ## Будущие расширения — куда встраивать
 
 - Аккаунты и несколько спортсменов: поле `athleteId` в записях (новая версия схемы) и серверное хранилище
@@ -175,4 +201,6 @@ Perek.us (если сервер с ключом доступен) → Open Food 
 - Apple Health / Apple Watch: импорт сна и тренировок через нативное приложение или экспорт Health → JSON,
   с сохранением источника записи.
 - ИИ: реализация `AiAdapter` через сервер (ключ в env), отправка только подтверждённого текста.
-- Планы фаз сезона: отдельная таблица планов и связь `workout.planId` для сравнения план/факт.
+- Планы фаз сезона: связь план/факт уже есть на уровне занятия (`workout.programId`, `workout.scheduleId`);
+  фазы сезона — отдельная таблица поверх программ и плана недели.
+- Видео техники: поле ссылки/файла у упражнения каталога (своего) или в `settings.exerciseNotes`.
