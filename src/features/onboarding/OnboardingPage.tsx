@@ -185,7 +185,7 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
             <a className="btn primary big" href={feedback} target="_blank" rel="noreferrer">
               Оставить отзыв (2–3 минуты)
             </a>
-            <p className="small muted">Отзыв можно оставить и позже: «Ещё» → «Оставить отзыв». В форму не попадают ваши записи из приложения.</p>
+            <p className="small muted">Отзыв можно оставить и позже: «Ещё» → «Оставить отзыв». Форма внешняя (сервис Tally), ваши записи из приложения в неё не попадают.</p>
             <ul className="onb-points">
               <li>Чтобы данные не потерялись, время от времени делайте резервную копию: «Ещё» → «Резервная копия».</li>
               <li>На iPhone: «Поделиться» в Safari → «На экран „Домой“» — приложение откроется как обычное.</li>

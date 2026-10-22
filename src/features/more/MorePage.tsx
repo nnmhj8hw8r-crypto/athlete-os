@@ -19,7 +19,7 @@ export function MorePage() {
       <a className="hero-card link" href={feedback} target="_blank" rel="noreferrer">
         <span className="hero-label">Демо-версия</span>
         <span className="hero-title">Оставить отзыв</span>
-        <span className="muted small">Что понравилось, что неудобно, чего не хватает — 2–3 минуты. Ваши записи в форму не попадают.</span>
+        <span className="muted small">Что понравилось, что неудобно, чего не хватает — 2–3 минуты. Форма внешняя (Tally), ваши записи в неё не попадают.</span>
       </a>
       <ul className="list">
         {ITEMS.map((i) => (

@@ -131,7 +131,7 @@ export function normalizeProfile(raw: unknown): Profile | null {
   return p;
 }
 
-/** Адрес формы отзыва с версией и сценарием (ничего личного) — чтобы разбирать ответы по группам. */
+/** Адрес формы отзыва с версией и сценарием (без имени, веса и записей) — чтобы разбирать ответы по группам. */
 export function feedbackUrl(base: string, version: string, scenario?: Scenario): string {
   const u = new URL(base);
   u.searchParams.set('v', version);
