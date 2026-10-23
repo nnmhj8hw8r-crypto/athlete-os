@@ -66,12 +66,12 @@ nav.tabs button { border: 0; background: none; padding: 10px 14px; border-bottom
 nav.tabs button[aria-current="page"] { color: var(--fg); border-bottom-color: var(--brand); font-weight: 600; }
 nav.tabs button .n { font-size: 12px; color: var(--muted); margin-left: 4px; }
 
-main { padding-block: 18px 60px; display: grid; gap: 16px; }
+main { padding-block: 18px 60px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 h2 { font-size: 20px; margin: 0; text-wrap: balance; }
 h3 { font-size: 16px; margin: 0; }
 p { margin: 0; }
 .hint { color: var(--muted); font-size: 13px; }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
 .spacer { flex: 1; }
 
@@ -86,7 +86,7 @@ p { margin: 0; }
 :focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 input:focus, select:focus, textarea:focus { border-color: var(--brand); outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent); }
 .f { display: grid; gap: 3px; font-size: 13px; color: var(--muted); min-width: 0; }
-.f > span { white-space: nowrap; }
+.f > span { overflow-wrap: anywhere; }
 input, select, textarea { border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; background: var(--surface); min-width: 0; }
 input[type="number"] { font-variant-numeric: tabular-nums; }
 textarea { resize: vertical; }
@@ -188,7 +188,7 @@ tr.withdrawn td:last-child { text-decoration: none; }
 .banner .wrap { padding-block: 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 
 /* Предпросмотр бланков на экране */
-.sheets { display: grid; gap: 16px; justify-items: center; }
+.sheets { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; justify-items: center; }
 .sheet-frame { background: #fff; color: #000; box-shadow: 0 1px 6px rgba(0,0,0,.18); width: 210mm; max-width: 100%; overflow-x: auto; }
 .print-list label { display: flex; gap: 8px; align-items: center; padding: 4px 0; border-bottom: 1px dashed var(--line); font-size: 14px; }
 
@@ -226,4 +226,40 @@ tr.withdrawn td:last-child { text-decoration: none; }
   #print-area { display: block !important; }
   #print-area .sheet { page-break-after: always; break-after: page; }
   #print-area .sheet:last-child { page-break-after: auto; break-after: auto; }
+}
+
+/* Заявка: статусы, сводка, строка «приехали N из M» на взвешивании */
+.pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pill.arrived { background: var(--ok-soft); color: var(--ok); }
+.pill.expected { background: var(--warn-soft); color: var(--warn); }
+.pill.absent { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+tr.st-absent td:not(:last-child) { color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+.stats > div { border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: grid; }
+.stats b { font-size: 22px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.stats span { font-size: 12px; color: var(--muted); }
+.stats .ok b { color: var(--ok); }
+.stats .warn b { color: var(--warn); }
+.arrivals { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 14px; padding: 8px 12px; border-radius: 6px; background: var(--beige-soft); }
+.arrivals .ok { color: var(--ok); }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--brand); text-decoration: underline; cursor: pointer; font: inherit; }
+.ac-item em.st { font-style: normal; font-size: 11px; margin-left: auto; padding: 1px 7px; border-radius: 999px; background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+.ac-item em.st.entry { background: var(--beige-soft); color: var(--fg); border-color: var(--beige); }
+.ac-item em.st.arrived { background: var(--ok-soft); color: var(--ok); border-color: transparent; }
+.ac-item em.st.absent { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.err:empty { display: none; }
+
+/* Телефон и планшет: компактная шапка, кнопки крупнее для пальца */
+@media (pointer: coarse) {
+  .btn, .btn.small { min-height: 36px; }
+  .kbd-only { display: none; }
+}
+@media (max-width: 640px) {
+  .banner-text { display: none; }
+  .top .wrap { gap: 8px; }
+  .chips .chip { font-size: 12px; padding: 2px 8px; }
+  .actions .btn { padding: 5px 9px; font-size: 14px; }
+  .brand { font-size: 16px; }
+  main { padding-block: 12px 48px; gap: 12px; }
+  .panel { padding: 12px; }
 }

@@ -190,3 +190,49 @@ test('файл версии 1 открывается: два формата бо
   assert.deepEqual(s.settings.formats, ['На коленках', 'В стойке']);
   assert.deepEqual(s.roster, []);
 });
+
+test('заявка: статусы «приехал / ждём / не приехал» и новый участник вне заявки', () => {
+  const s = GL.defaultState();
+  const a = GL.entryUpsert(s, { lastName: 'Панков', firstName: 'Мирон', birthDate: '2021-03-04', sex: 'М', branch: 'Филиал 1' }).entry;
+  const b = GL.entryUpsert(s, { lastName: 'Пепеляев', firstName: 'Максим', birthDate: '2020-07-12', sex: 'М', branch: 'Филиал 2' }).entry;
+  const c = GL.entryUpsert(s, { lastName: 'Полников', firstName: 'Ильяс', birthDate: '2021-01-01', sex: 'М', branch: 'Филиал 1' }).entry;
+  assert.equal(GL.entryUpsert(s, { lastName: 'панков', firstName: 'мирон', birthDate: '2021-03-04', level: 'Средний' }).isNew, false);
+  assert.equal(s.entries.length, 3);
+  s.participants.push(person('x1', 22, { lastName: 'Панков', firstName: 'Мирон', birthDate: '2021-03-04' }));
+  s.participants.push(person('x2', 25, { entryId: c.id, lastName: 'Полников', firstName: 'Ильяс', birthDate: '2021-01-01' }));
+  s.participants.push(person('x3', 24, { lastName: 'Новенький', firstName: 'Петя', birthDate: '2021-06-06' }));
+  b.absent = true;
+  assert.equal(GL.entryStatus(s, a), 'arrived');
+  assert.equal(GL.entryStatus(s, b), 'absent');
+  assert.equal(GL.entryStatus(s, c), 'arrived');
+  const sum = GL.entrySummary(s);
+  assert.deepEqual(sum.total, { expected: 0, arrived: 2, absent: 1, all: 3 });
+  assert.equal(sum.extra, 1);
+  assert.equal(sum.branches.find((x) => x.branch === 'Филиал 1').arrived, 2);
+});
+
+test('подсказки: сначала заявка, потом справочник, без повторов', () => {
+  const s = GL.defaultState();
+  GL.entryUpsert(s, { lastName: 'Панков', firstName: 'Мирон', birthDate: '2021-03-04' });
+  GL.rosterUpsert(s, { lastName: 'Панков', firstName: 'Мирон', birthDate: '2021-03-04' });
+  GL.rosterUpsert(s, { lastName: 'Панкратов', firstName: 'Лев', birthDate: '2019-03-04' });
+  const list = GL.suggest(s, 'панк');
+  assert.deepEqual(list.map((x) => x.source), ['entry', 'roster']);
+});
+
+test('участник в сетке чужой части считается проблемой', () => {
+  const s = stateWith([person('a', 20), person('b', 21), person('c', 22)]);
+  GL.buildPart(s, 'p1');
+  s.settings.parts[0].yearFrom = 2022;
+  assert.equal(GL.integrity(s).misplaced.length, 3);
+});
+
+test('пробный турнир: заявка больше числа приехавших', () => {
+  const s = GL.defaultState();
+  const t = GL.testTournament(s, 55);
+  s.entries = t.entries; s.participants = t.participants;
+  const sum = GL.entrySummary(s).total;
+  assert.equal(sum.all, 220);
+  assert.equal(sum.arrived, t.participants.length);
+  assert.ok(sum.expected > 0 && sum.absent > 0);
+});

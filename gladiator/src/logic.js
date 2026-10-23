@@ -3,7 +3,7 @@
 (function () {
   'use strict';
 
-  const SCHEMA_VERSION = 2;
+  const SCHEMA_VERSION = 3;
   // «Цена» каждой лишней сетки в разбивке (в кг² разброса веса): чем больше, тем реже сетки по 3.
   const GRID_COST = 1;
   const LETTERS = ['а', 'б', 'в', 'г', 'д', 'е', 'ж', 'з', 'и', 'к', 'л', 'м'];
@@ -43,6 +43,7 @@
       grids: [],
       builtParts: {},
       roster: [],
+      entries: [],
     };
   }
 
@@ -59,6 +60,7 @@
       grids: Array.isArray(data.grids) ? data.grids : [],
       builtParts: data.builtParts || {},
       roster: Array.isArray(data.roster) ? data.roster : [],
+      entries: Array.isArray(data.entries) ? data.entries : [],
     };
     // Версия 1: три формата по умолчанию → два («На коленках», «В стойке»).
     if ((data.schema || 1) < 2 && JSON.stringify(state.settings.formats) === JSON.stringify(['На коленках без курток', 'На коленках', 'В стойке'])) {
@@ -504,8 +506,14 @@
     const reprint = state.grids.filter((g) => g.dirtyAfterPrint);
     const notPrinted = state.grids.filter((g) => !g.printedAt);
     const inGrids = active.filter((p) => count.has(p.id)).length;
-    const problems = noPart.length + unassigned.length + duplicates.length + ghosts.length + small.length + big.length;
-    return { total: active.length, inGrids, noPart, unassigned, notBuilt, duplicates, ghosts, small, big, reprint, notPrinted, problems };
+    // Участник в сетке «чужой» части — например, после смены годов рождения у частей.
+    const pmap = participantsMap(state);
+    const misplaced = state.grids.flatMap((g) => g.members.filter((id) => {
+      const p = pmap.get(id);
+      return p && !p.withdrawn && partOf(state, p) !== g.partId;
+    }));
+    const problems = noPart.length + unassigned.length + duplicates.length + ghosts.length + small.length + big.length + misplaced.length;
+    return { total: active.length, inGrids, noPart, unassigned, notBuilt, duplicates, ghosts, small, big, reprint, notPrinted, misplaced, problems };
   }
 
   function findDuplicate(state, p) {
@@ -560,6 +568,21 @@
       }
     }
     return out;
+  }
+
+  // Пробный турнир: заявка от филиалов (по perPart на часть), из неё «приехали» почти все,
+  // несколько человек ещё ждём, несколько отмечены «не приехал». Всё помечено test: true.
+  function testTournament(state, perPart) {
+    const people = testParticipants(state, perPart || 55);
+    const entries = [];
+    const participants = [];
+    people.forEach((p, i) => {
+      const entry = { id: uid('e'), lastName: p.lastName, firstName: p.firstName, birthDate: p.birthDate, sex: p.sex, level: p.level, branch: p.branch, coach: p.coach, partId: p.partId, absent: false, test: true };
+      entries.push(entry);
+      if (i % 11 === 10) entry.absent = i % 22 === 21;
+      else participants.push(Object.assign({}, p, { entryId: entry.id }));
+    });
+    return { entries, participants };
   }
 
   // ---------- Справочник клуба (база спортсменов) ----------
@@ -623,6 +646,73 @@
     return { items, errors };
   }
 
+  // ---------- Заявка на турнир (списки от филиалов) ----------
+
+  // Участник турнира, соответствующий строке заявки: по ссылке entryId или по ФИО + дате рождения.
+  function entryParticipant(state, entry) {
+    const key = rosterKey(entry);
+    return state.participants.find((p) => p.entryId === entry.id) ||
+      state.participants.find((p) => !p.entryId && rosterKey(p) === key) || null;
+  }
+
+  // Статус строки заявки: приехал (взвешен), не приехал (отмечено), ждём.
+  function entryStatus(state, entry) {
+    const p = entryParticipant(state, entry);
+    if (p && !p.withdrawn) return 'arrived';
+    if (entry.absent || (p && p.withdrawn)) return 'absent';
+    return 'expected';
+  }
+
+  // Добавить в заявку; повтор (те же ФИО и дата рождения) обновляет строку.
+  function entryUpsert(state, e) {
+    const key = rosterKey(e);
+    const fields = ['lastName', 'firstName', 'birthDate', 'sex', 'level', 'branch', 'coach', 'partId'];
+    let r = state.entries.find((x) => rosterKey(x) === key);
+    const isNew = !r;
+    if (!r) { r = { id: uid('e'), absent: false }; state.entries.push(r); }
+    for (const f of fields) if (e[f] != null && e[f] !== '') r[f] = e[f];
+    return { entry: r, isNew };
+  }
+
+  function entrySummary(state) {
+    const byBranch = new Map();
+    const total = { expected: 0, arrived: 0, absent: 0, all: state.entries.length };
+    for (const e of state.entries) {
+      const st = entryStatus(state, e);
+      total[st] += 1;
+      const b = e.branch || 'Без филиала';
+      if (!byBranch.has(b)) byBranch.set(b, { branch: b, expected: 0, arrived: 0, absent: 0, all: 0 });
+      const row = byBranch.get(b);
+      row[st] += 1;
+      row.all += 1;
+    }
+    const keys = new Set(state.entries.map(rosterKey));
+    const ids = new Set(state.entries.map((e) => e.id));
+    const extra = state.participants.filter((p) => !p.withdrawn && !(p.entryId && ids.has(p.entryId)) && !keys.has(rosterKey(p))).length;
+    return { total, extra, branches: Array.from(byBranch.values()).sort((a, b) => a.branch.localeCompare(b.branch, 'ru')) };
+  }
+
+  // Подсказки при взвешивании: сначала заявка этого турнира, потом справочник клуба.
+  function suggest(state, query, limit) {
+    const q = norm(query);
+    if (!q) return [];
+    const match = (r) => norm(r.lastName + ' ' + r.firstName).startsWith(q) || norm(r.lastName).startsWith(q);
+    const seen = new Set();
+    const out = [];
+    const byName = (a, b) => fullName(a).localeCompare(fullName(b), 'ru');
+    for (const e of state.entries.filter(match).sort(byName)) {
+      seen.add(rosterKey(e));
+      out.push({ item: e, source: 'entry', status: entryStatus(state, e) });
+    }
+    for (const r of state.roster.filter(match).sort(byName)) {
+      if (seen.has(rosterKey(r))) continue;
+      seen.add(rosterKey(r));
+      const weighed = state.participants.some((p) => !p.withdrawn && rosterKey(p) === rosterKey(r));
+      out.push({ item: r, source: 'roster', status: weighed ? 'arrived' : 'expected' });
+    }
+    return out.slice(0, limit || 8);
+  }
+
   const GL = {
     SCHEMA_VERSION, uid, defaultState, migrate, clone,
     birthYear, formatRuDate, formatBirth, toRoman, fullName, partYearsLabel,
@@ -630,8 +720,9 @@
     partitionByWeight, buildPart, gridsOfPart, gridLabels, gridWeights, participantsMap,
     roundRobin, bouts, distributeMats, matLoads,
     gridOfParticipant, detach, placeIncremental, rebuildGroup,
-    integrity, findDuplicate, testParticipants,
+    integrity, findDuplicate, testParticipants, testTournament,
     rosterFind, rosterUpsert, rosterKey, parseRosterText, parseDate,
+    entryParticipant, entryStatus, entryUpsert, entrySummary, suggest,
   };
   globalThis.GL = GL;
 })();
