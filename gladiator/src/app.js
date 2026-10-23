@@ -34,11 +34,13 @@
     if (globalThis.GLADIATOR_DEMO) {
       state.participants = GL.testParticipants(state, 50);
       state.settings.parts.forEach((p) => GL.buildPart(state, p.id));
+      state.participants.slice(0, 120).forEach((p) => { GL.rosterUpsert(state, p).test = true; });
     }
   }
   if (!state.settings.date) state.settings.date = todayIso();
   const history = [];
-  const ui = { tab: 'weigh', part: state.settings.parts[0] ? state.settings.parts[0].id : null, editId: null, search: '', printPart: null, printMat: 'all', printSel: null, formError: '' };
+  const LOGO = '__LOGO__';
+  const ui = { rosterEdit: null, rosterSearch: '', importMsg: '', prefill: null, tab: 'weigh', part: state.settings.parts[0] ? state.settings.parts[0].id : null, editId: null, search: '', printPart: null, printMat: 'all', printSel: null, formError: '' };
 
   function todayIso() {
     const d = new Date();
@@ -142,16 +144,17 @@
   function renderTop(info) {
     const tabs = [
       ['setup', 'Турнир'],
+      ['roster', 'Справочник', state.roster.length],
       ['weigh', 'Взвешивание', info.total],
       ['grids', 'Сетки', state.grids.length],
       ['mats', 'Ковры'],
       ['print', 'Печать', info.reprint.length ? '↻' + info.reprint.length : ''],
     ];
-    const hasTest = state.participants.some((p) => p.test);
+    const hasTest = state.participants.some((p) => p.test) || state.roster.some((r) => r.test);
     return (hasTest ? '<div class="banner"><div class="wrap"><b>Тестовые данные.</b> В турнире есть вымышленные участники для пробы. <button class="btn small" data-act="remove-test">Удалить тестовых</button></div></div>' : '') +
       (!storageOk ? '<div class="banner"><div class="wrap">Автосохранение в этом браузере недоступно — сохраняйте турнир в файл.</div></div>' : '') +
       '<header class="top"><div class="wrap">' +
-      '<div class="brand"><span class="belts" aria-hidden="true"><i></i><i></i></span><span>Гладиатор: шахматки<br><small>' + h(GL.formatRuDate(state.settings.date)) + '</small></span></div>' +
+      '<div class="brand"><img class="logo" src="' + LOGO + '" alt="Эмблема клуба «Гладиатор»" width="40" height="40"><span>Гладиатор: шахматки <span class="demo-tag">Демо-версия</span><br><small>' + h(GL.formatRuDate(state.settings.date)) + '</small></span></div>' +
       '<div class="chips">' +
       '<span class="chip">Взвешено: <b>' + info.total + '</b></span>' +
       '<span class="chip ' + (info.inGrids === info.total && info.total ? 'ok' : '') + '">В сетках: <b>' + info.inGrids + '</b></span>' +
@@ -192,20 +195,103 @@
       '<label class="f" style="flex:3 1 320px"><span>Заголовок бланка</span><input id="s-title" data-set="title" value="' + h(s.title) + '"></label>' +
       '<label class="f"><span>Дата</span><input id="s-date" type="date" data-set="date" value="' + h(s.date) + '"></label>' +
       '<label class="f"><span>Ковров</span><input id="s-mats" type="number" min="1" max="10" data-set="mats" value="' + s.mats + '" style="width:80px"></label>' +
-      '<label class="f"><span>В сетке от</span><input id="s-min" type="number" min="2" max="8" data-set="minSize" value="' + s.minSize + '" style="width:80px"></label>' +
-      '<label class="f"><span>до</span><input id="s-max" type="number" min="2" max="8" data-set="maxSize" value="' + s.maxSize + '" style="width:80px"></label>' +
+      '<div class="f"><span>Человек в сетке</span><div class="range"><label for="s-min">от</label><input id="s-min" type="number" min="2" max="8" data-set="minSize" value="' + s.minSize + '"><label for="s-max">до</label><input id="s-max" type="number" min="2" max="8" data-set="maxSize" value="' + s.maxSize + '"></div></div>' +
       '</div></section>' +
       '<section class="panel"><div class="row"><h2>Части турнира</h2><span class="spacer"></span><button class="btn" data-act="add-part">Добавить часть</button></div>' +
-      '<p class="hint">Участник попадает в часть по году рождения. Если у части годы не заданы (например, «выборочно»), участников в неё ставят вручную при взвешивании. «Плавающие» категории — сетки собираются из ближайших по весу; на бланке пишется вес самого тяжёлого, округлённый вверх. «Фиксированные» — по границам «до 24, до 26…»; переполненная категория делится на подгруппы а, б, в. Пустая «разница в весе» — подбирается автоматически.</p>' +
+      '<details class="help"><summary>Как работают части и весовые категории</summary><p>Участник попадает в часть по году рождения. Если у части годы не заданы (например, «выборочно»), участников в неё ставят вручную при взвешивании. «Плавающие» категории — сетки собираются из ближайших по весу; на бланке пишется вес самого тяжёлого, округлённый вверх. «Фиксированные» — по границам «до 24, до 26…»; переполненная категория делится на подгруппы а, б, в. Пустая «разница в весе» — подбирается автоматически. Форматы борьбы и уровни меняются на вкладке «Справочник».</p></details>' +
       '<div class="table-wrap"><table class="list parts-table"><thead><tr><th>Название</th><th>Г. р. с</th><th>по</th><th>Формат борьбы</th><th>Вес</th><th>Границы, кг</th><th>Разница, кг</th><th>Чел.</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div></section>' +
-      '<section class="panel"><h2>Списки</h2><div class="row">' +
-      '<label class="f" style="flex:1 1 240px"><span>Уровни подготовки (по одному в строке)</span><textarea id="s-levels" rows="4" data-list="levels">' + h(s.levels.join('\n')) + '</textarea></label>' +
-      '<label class="f" style="flex:1 1 240px"><span>Форматы борьбы (по одному в строке)</span><textarea id="s-formats" rows="4" data-list="formats">' + h(s.formats.join('\n')) + '</textarea></label>' +
-      '</div></section>' +
       '<section class="panel"><h2>Проба и сброс</h2><p class="hint">Тестовые участники вымышлены и помечены. Их удобно использовать, чтобы показать приложение и потренироваться; перед настоящим турниром удалите их.</p>' +
       '<div class="row"><button class="btn" data-act="add-test">Добавить тестовых (по 50 на часть)</button>' +
       '<button class="btn" data-act="remove-test">Удалить тестовых</button><span class="spacer"></span>' +
       '<button class="btn danger" data-act="reset">Начать новый турнир</button></div></section>';
+  }
+
+  // ---------- Справочник ----------
+
+  function renderRoster() {
+    const s = state.settings;
+    const editing = ui.rosterEdit ? state.roster.find((r) => r.id === ui.rosterEdit) : null;
+    const v = editing || { lastName: '', firstName: '', birthDate: '', sex: 'М', level: s.levels[0] || '', branch: '', coach: '' };
+    const q = ui.rosterSearch.trim().toLowerCase().replace(/ё/g, 'е');
+    const list = state.roster.filter((r) => !q || (GL.fullName(r) + ' ' + (r.branch || '') + ' ' + (r.coach || '')).toLowerCase().replace(/ё/g, 'е').includes(q))
+      .sort((a, b) => GL.fullName(a).localeCompare(GL.fullName(b), 'ru'));
+    const shown = list.slice(0, 300);
+    const weighed = new Set(state.participants.map((p) => GL.rosterKey(p)));
+    const rows = shown.map((r) => {
+      const partId = GL.partOf(state, r);
+      return '<tr><td>' + h(GL.fullName(r)) + (r.test ? ' <span class="tag test">тест</span>' : '') + '</td><td>' + h(GL.formatBirth(r.birthDate)) + '</td>' +
+        '<td><span class="tag ' + (r.sex === 'Ж' ? 'f' : 'm') + '">' + (r.sex === 'Ж' ? 'Ж' : 'М') + '</span></td>' +
+        '<td>' + h(r.level || '') + '</td><td>' + h(r.branch || '') + '</td><td>' + h(r.coach || '') + '</td>' +
+        '<td>' + (partId ? h(partName(partId)) : '<span class="hint">—</span>') + '</td>' +
+        '<td><div class="actions">' + (weighed.has(GL.rosterKey(r)) ? '<span class="tag">взвешен</span>' : '<button class="btn small" data-act="roster-weigh" data-id="' + r.id + '">Взвесить</button>') +
+        '<button class="btn small" data-act="roster-edit" data-id="' + r.id + '">Изменить</button>' +
+        '<button class="btn small danger" data-act="roster-del" data-id="' + r.id + '" aria-label="Удалить из справочника">×</button></div></td></tr>';
+    }).join('');
+    const listArea = (name, label, values, rows) => '<label class="f"><span>' + label + '</span><textarea id="l-' + name + '" rows="' + rows + '" data-list="' + name + '">' + h(values.join('\n')) + '</textarea></label>';
+    return '<section class="panel"><div class="row"><div><h2>Справочник клуба</h2><p class="hint">Спортсмены клуба хранятся здесь между турнирами. При взвешивании начните вводить фамилию — дата рождения, пол, уровень, филиал и тренер подставятся, а часть турнира подберётся по году рождения. Каждый взвешенный участник автоматически добавляется или обновляется здесь.</p></div></div></section>' +
+      '<section class="panel"><h2>' + (editing ? 'Изменить спортсмена' : 'Добавить спортсмена') + '</h2>' +
+      '<form id="roster-form" class="weigh-form" autocomplete="off">' +
+      '<label class="f"><span>Фамилия</span><input id="r-last" name="lastName" value="' + h(v.lastName) + '" required></label>' +
+      '<label class="f"><span>Имя</span><input id="r-first" name="firstName" value="' + h(v.firstName) + '"></label>' +
+      '<label class="f"><span>Дата рождения</span><input id="r-birth" name="birthDate" type="date" min="2000-01-01" max="2030-12-31" value="' + h(v.birthDate) + '" required></label>' +
+      '<label class="f"><span>Пол</span><select id="r-sex" name="sex"><option value="М" ' + (v.sex !== 'Ж' ? 'selected' : '') + '>мальчик</option><option value="Ж" ' + (v.sex === 'Ж' ? 'selected' : '') + '>девочка</option></select></label>' +
+      '<label class="f"><span>Уровень</span><select id="r-level" name="level">' + s.levels.map((l) => '<option ' + (l === v.level ? 'selected' : '') + '>' + h(l) + '</option>').join('') + '</select></label>' +
+      '<label class="f"><span>Филиал</span><input id="r-branch" name="branch" list="dl-rbranch" value="' + h(v.branch || '') + '"></label>' +
+      '<label class="f"><span>Тренер</span><input id="r-coach" name="coach" list="dl-rcoach" value="' + h(v.coach || '') + '"></label>' +
+      '<div class="row"><button class="btn primary" type="submit">' + (editing ? 'Сохранить' : 'Добавить') + '</button>' + (editing ? '<button class="btn" type="button" data-act="roster-cancel">Отмена</button>' : '') + '</div></form>' +
+      '<datalist id="dl-rbranch">' + knownValues('branch').map((b) => '<option value="' + h(b) + '">').join('') + '</datalist>' +
+      '<datalist id="dl-rcoach">' + knownValues('coach').map((b) => '<option value="' + h(b) + '">').join('') + '</datalist>' +
+      '</section>' +
+      '<section class="panel"><div class="row"><h2>Спортсмены <span class="hint">' + state.roster.length + '</span></h2><span class="spacer"></span>' +
+      '<input id="roster-search" type="search" placeholder="Поиск по фамилии, филиалу, тренеру" value="' + h(ui.rosterSearch) + '" style="min-width:min(280px,100%)"></div>' +
+      (state.roster.length ? '<div class="table-wrap"><table class="list"><thead><tr><th>ФИО</th><th>Д. р.</th><th>Пол</th><th>Уровень</th><th>Филиал</th><th>Тренер</th><th>Часть</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        (list.length > shown.length ? '<p class="hint">Показаны первые ' + shown.length + ' из ' + list.length + ' — уточните поиск.</p>' : '') +
+        (list.length ? '' : '<div class="empty">Никого не нашли по запросу «' + h(ui.rosterSearch) + '».</div>')
+        : '<div class="empty">Справочник пуст. Добавьте спортсменов вручную, загрузите список из Excel ниже или просто взвешивайте — участники попадут сюда сами.</div>') +
+      '</section>' +
+      '<section class="panel"><details class="help"' + (state.roster.length && !ui.importMsg ? '' : ' open') + '><summary>Загрузить список из Excel</summary>' +
+      '<p>Скопируйте из Excel строки с колонками в таком порядке: <b>Фамилия, Имя, Дата рождения, Пол, Уровень, Филиал, Тренер</b> (последние четыре можно не заполнять) и вставьте сюда. Дата — в виде 04.03.2021. Если спортсмен уже есть в справочнике, его данные обновятся.</p>' +
+      '<textarea id="import-text" rows="5" placeholder="Панков&#9;Мирон&#9;04.03.2021&#9;М&#9;Новичок&#9;Филиал 1&#9;Иванов"></textarea>' +
+      '<div class="row"><button class="btn primary" data-act="import">Добавить в справочник</button></div>' +
+      (ui.importMsg ? '<div class="notice ' + (ui.importMsg.startsWith('Ошибки') ? 'warn' : 'ok') + '">' + ui.importMsg + '</div>' : '') +
+      '</details></section>' +
+      '<section class="panel"><h2>Списки</h2><p class="hint">По одному значению в строке. Филиалы и тренеры подсказываются при вводе.</p><div class="lists">' +
+      listArea('formats', 'Форматы борьбы', s.formats, 3) + listArea('levels', 'Уровни подготовки', s.levels, 3) +
+      listArea('branches', 'Филиалы', s.branches || [], 3) + listArea('coaches', 'Тренеры', s.coaches || [], 3) +
+      '</div></section>';
+  }
+
+  function submitRoster(form) {
+    const fd = new FormData(form);
+    const data = {
+      lastName: String(fd.get('lastName') || '').trim(),
+      firstName: String(fd.get('firstName') || '').trim(),
+      birthDate: String(fd.get('birthDate') || ''),
+      sex: fd.get('sex') === 'Ж' ? 'Ж' : 'М',
+      level: String(fd.get('level') || ''),
+      branch: String(fd.get('branch') || '').trim(),
+      coach: String(fd.get('coach') || '').trim(),
+    };
+    if (!data.lastName || !/^\d{4}-\d{2}-\d{2}$/.test(data.birthDate)) { toast('Нужны фамилия и дата рождения'); return; }
+    const editId = ui.rosterEdit;
+    ui.rosterEdit = null;
+    commit((st) => {
+      if (editId) { const r = st.roster.find((x) => x.id === editId); if (r) Object.assign(r, data); else GL.rosterUpsert(st, data); }
+      else GL.rosterUpsert(st, data);
+    }, editId ? 'Сохранено' : 'Добавлен в справочник');
+    setTimeout(() => { const el = document.getElementById('r-last'); if (el) el.focus(); }, 0);
+  }
+
+  function importRoster() {
+    const el = document.getElementById('import-text');
+    const { items, errors } = GL.parseRosterText(el ? el.value : '');
+    if (!items.length && !errors.length) { toast('Вставьте строки из Excel'); return; }
+    const before = state.roster.length;
+    commit((st) => { items.forEach((x) => GL.rosterUpsert(st, x)); });
+    const added = state.roster.length - before;
+    ui.importMsg = (errors.length ? 'Ошибки: ' + h(errors.slice(0, 5).join('; ')) + (errors.length > 5 ? '…' : '') + '. ' : '') +
+      'Новых: ' + added + ', обновлено: ' + (items.length - added) + '.';
+    render();
   }
 
   // ---------- Взвешивание ----------
@@ -213,12 +299,13 @@
   function renderWeigh() {
     const s = state.settings;
     const editing = ui.editId ? state.participants.find((p) => p.id === ui.editId) : null;
-    const v = editing || { lastName: '', firstName: '', birthDate: '', sex: 'М', weight: '', level: s.levels[0] || '', branch: lastValue('branch'), coach: lastValue('coach'), partId: '' };
-    const branches = uniq(state.participants.map((p) => p.branch));
-    const coaches = uniq(state.participants.map((p) => p.coach));
+    const pre = !editing && ui.prefill ? state.roster.find((r) => r.id === ui.prefill) : null;
+    const v = editing || Object.assign({ lastName: '', firstName: '', birthDate: '', sex: 'М', weight: '', level: s.levels[0] || '', branch: lastValue('branch'), coach: lastValue('coach'), partId: '' }, pre ? Object.assign({}, pre, { weight: '', partId: '' }) : {});
+    const branches = knownValues('branch');
+    const coaches = knownValues('coach');
     const form = '<section class="panel"><div class="row"><h2>' + (editing ? 'Изменить участника' : 'Взвешивание') + '</h2><span class="spacer"></span><span class="hint">Enter — сохранить, Tab — следующее поле</span></div>' +
       '<form id="weigh-form" class="weigh-form" autocomplete="off">' +
-      '<label class="f"><span>Фамилия</span><input id="f-last" name="lastName" value="' + h(v.lastName) + '" required></label>' +
+      '<label class="f ac"><span>Фамилия</span><input id="f-last" name="lastName" value="' + h(v.lastName) + '" required aria-autocomplete="list" aria-controls="ac-list"><div id="ac-list" class="ac-list" role="listbox" hidden></div></label>' +
       '<label class="f"><span>Имя</span><input id="f-first" name="firstName" value="' + h(v.firstName) + '"></label>' +
       '<label class="f"><span>Дата рождения</span><input id="f-birth" name="birthDate" type="date" min="2000-01-01" max="2030-12-31" value="' + h(v.birthDate) + '" required></label>' +
       '<label class="f"><span>Пол</span><select id="f-sex" name="sex"><option ' + (v.sex === 'М' ? 'selected' : '') + ' value="М">мальчик</option><option ' + (v.sex === 'Ж' ? 'selected' : '') + ' value="Ж">девочка</option></select></label>' +
@@ -227,8 +314,10 @@
       '<label class="f"><span>Филиал</span><input id="f-branch" name="branch" list="dl-branch" value="' + h(v.branch) + '"></label>' +
       '<label class="f"><span>Тренер</span><input id="f-coach" name="coach" list="dl-coach" value="' + h(v.coach) + '"></label>' +
       '<label class="f"><span>Часть</span><select id="f-part" name="partId"><option value="">по году рождения</option>' + s.parts.map((p) => '<option value="' + p.id + '" ' + (v.partId === p.id ? 'selected' : '') + '>' + h(p.name) + '</option>').join('') + '</select></label>' +
-      '<div class="row"><button class="btn primary" type="submit">' + (editing ? 'Сохранить' : 'Добавить') + '</button>' + (editing ? '<button class="btn" type="button" data-act="cancel-edit">Отмена</button>' : '') + '</div>' +
+      '<div class="row"><button class="btn primary" type="submit">' + (editing ? 'Сохранить' : 'Добавить') + '</button>' + (editing || pre ? '<button class="btn" type="button" data-act="cancel-edit">Отмена</button>' : '') + '</div>' +
       '</form>' +
+      '<p id="part-hint" class="part-hint">' + partHint(v.birthDate, v.partId) + '</p>' +
+      (state.roster.length ? '' : '<p class="hint">Совет: заполните «Справочник» спортсменами клуба — тогда при взвешивании достаточно начать вводить фамилию, остальное подставится.</p>') +
       '<datalist id="dl-branch">' + branches.map((b) => '<option value="' + h(b) + '">').join('') + '</datalist>' +
       '<datalist id="dl-coach">' + coaches.map((b) => '<option value="' + h(b) + '">').join('') + '</datalist>' +
       (ui.formError ? '<p class="err" role="alert">' + h(ui.formError) + '</p>' : '') +
@@ -258,9 +347,67 @@
       '<input id="search" type="search" placeholder="Поиск по фамилии, филиалу, тренеру" value="' + h(ui.search) + '" style="min-width:min(280px,100%)"></div>' +
       (state.participants.length ? '<div class="table-wrap"><table class="list"><thead><tr><th>ФИО</th><th>Д. р.</th><th>Пол</th><th>Вес</th><th>Уровень</th><th>Филиал</th><th>Тренер</th><th>Часть</th><th>Сетка</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
         (list.length ? '' : '<div class="empty">Никого не нашли по запросу «' + h(ui.search) + '».</div>')
-        : '<div class="empty">Пока никто не взвешен. Введите первого участника в форме выше — он сразу попадёт в свою часть по году рождения. Для пробы можно добавить тестовых участников на вкладке «Турнир».</div>') +
+        : '<div class="empty">Пока никто не взвешен. Введите первого участника в форме выше — он сразу попадёт в свою часть по году рождения. Если спортсмен есть в «Справочнике», достаточно начать вводить фамилию. Для пробы можно добавить тестовых участников на вкладке «Турнир».</div>') +
       '</section>';
     return form + table;
+  }
+
+  function knownValues(field) {
+    const listName = field === 'branch' ? 'branches' : 'coaches';
+    return uniq((state.settings[listName] || []).concat(state.roster.map((r) => r[field]), state.participants.filter((p) => !p.test).map((p) => p[field])));
+  }
+
+  // Подсказка под формой: в какую часть попадёт участник.
+  function partHint(birthDate, partId) {
+    if (!birthDate && !partId) return 'Часть определится по дате рождения.';
+    const id = GL.partOf(state, { birthDate, partId });
+    if (!id) return '<span class="bad">Год рождения не входит ни в одну часть — выберите часть вручную.</span>';
+    const part = GL.getPart(state, id);
+    return 'Попадёт в: <b>' + h(part.name) + '</b>' + (GL.partYearsLabel(part) ? ' (' + GL.partYearsLabel(part) + ' г. р.)' : '') + ' · ' + h(part.format);
+  }
+  function updatePartHint() {
+    const el = document.getElementById('part-hint');
+    const b = document.getElementById('f-birth');
+    const pp = document.getElementById('f-part');
+    if (el && b && pp) el.innerHTML = partHint(b.value, pp.value);
+  }
+
+  // Автоподстановка из справочника по фамилии.
+  let acItems = [];
+  let acIndex = -1;
+  function updateSuggestions() {
+    const input = document.getElementById('f-last');
+    const box = document.getElementById('ac-list');
+    if (!input || !box || ui.editId) return;
+    acItems = GL.rosterFind(state, input.value, 8);
+    acIndex = acItems.length ? 0 : -1;
+    drawSuggestions();
+  }
+  function drawSuggestions() {
+    const box = document.getElementById('ac-list');
+    if (!box) return;
+    if (!acItems.length) { box.hidden = true; box.innerHTML = ''; return; }
+    box.innerHTML = acItems.map((r, i) => '<div class="ac-item' + (i === acIndex ? ' on' : '') + '" role="option" data-ac="' + i + '" aria-selected="' + (i === acIndex) + '"><b>' + h(GL.fullName(r)) + '</b> <span>' + h(GL.formatBirth(r.birthDate)) + (r.branch ? ' · ' + h(r.branch) : '') + (r.level ? ' · ' + h(r.level) : '') + '</span></div>').join('') +
+      '<div class="ac-foot">↑↓ — выбрать, Enter — подставить, Esc — закрыть</div>';
+    box.hidden = false;
+  }
+  function hideSuggestions() {
+    acItems = [];
+    acIndex = -1;
+    drawSuggestions();
+  }
+  function pickSuggestion(i) {
+    const r = acItems[i];
+    if (!r) return;
+    const set = (id, val) => { const el = document.getElementById(id); if (el && val != null) el.value = val; };
+    set('f-last', r.lastName); set('f-first', r.firstName); set('f-birth', r.birthDate); set('f-sex', r.sex || 'М');
+    const lvl = document.getElementById('f-level');
+    if (lvl && r.level && Array.from(lvl.options).some((o) => o.value === r.level)) lvl.value = r.level;
+    set('f-branch', r.branch || ''); set('f-coach', r.coach || '');
+    hideSuggestions();
+    updatePartHint();
+    const w = document.getElementById('f-weight');
+    if (w) w.focus();
   }
 
   function uniq(arr) {
@@ -310,6 +457,7 @@
     const id = GL.uid('a');
     const mutate = (s) => {
       s.participants.push(Object.assign({ id, withdrawn: false, test: false, addedAt: new Date().toISOString() }, data));
+      GL.rosterUpsert(s, data);
       return GL.placeIncremental(s, id);
     };
     commitWithPrintCheck(mutate, (affected) => {
@@ -323,6 +471,7 @@
       return 'Добавлен: ' + partName(partId);
     });
     ui.editId = null;
+    ui.prefill = null;
     setTimeout(() => { const el = document.getElementById('f-last'); if (el) el.focus(); }, 0);
   }
 
@@ -332,6 +481,7 @@
     const mutate = (s) => {
       const p = s.participants.find((x) => x.id === id);
       Object.assign(p, data);
+      if (!p.test) GL.rosterUpsert(s, data);
       if (!regroup || p.withdrawn) {
         const g = GL.gridOfParticipant(s, id);
         if (g && g.printedAt) g.dirtyAfterPrint = true;
@@ -600,6 +750,7 @@
     const info = GL.integrity(state);
     let body = '';
     if (ui.tab === 'setup') body = renderSetup();
+    else if (ui.tab === 'roster') body = renderRoster();
     else if (ui.tab === 'weigh') body = renderWeigh();
     else if (ui.tab === 'grids') body = renderGrids(info);
     else if (ui.tab === 'mats') body = renderMats();
@@ -634,7 +785,12 @@
       case 'save-file': saveFile(); break;
       case 'open-file': openFile(); break;
       case 'edit': ui.editId = id; ui.formError = ''; render(); setTimeout(() => { const el = document.getElementById('f-weight'); if (el) el.focus(); }, 0); window.scrollTo(0, 0); break;
-      case 'cancel-edit': ui.editId = null; ui.formError = ''; render(); break;
+      case 'cancel-edit': ui.editId = null; ui.prefill = null; ui.formError = ''; render(); break;
+      case 'roster-edit': ui.rosterEdit = id; render(); window.scrollTo(0, 0); setTimeout(() => { const el = document.getElementById('r-last'); if (el) el.focus(); }, 0); break;
+      case 'roster-cancel': ui.rosterEdit = null; render(); break;
+      case 'roster-del': commit((st) => { st.roster = st.roster.filter((r) => r.id !== id); }, 'Удалён из справочника. Вернуть — «Отменить»'); break;
+      case 'roster-weigh': ui.prefill = id; ui.editId = null; ui.tab = 'weigh'; render(); window.scrollTo(0, 0); setTimeout(() => { const el = document.getElementById('f-weight'); if (el) el.focus(); }, 0); break;
+      case 'import': importRoster(); break;
       case 'withdraw': commitWithPrintCheck((s) => { s.participants.find((p) => p.id === id).withdrawn = true; const g = GL.detach(s, id); return g ? [g] : []; }, 'Участник снят'); break;
       case 'restore': commitWithPrintCheck((s) => { s.participants.find((p) => p.id === id).withdrawn = false; return GL.placeIncremental(s, id); }, 'Участник возвращён'); break;
       case 'delete': {
@@ -670,14 +826,16 @@
       case 'add-test': commit((s) => { s.participants = s.participants.concat(GL.testParticipants(s, 50)); }, 'Добавлены тестовые участники'); break;
       case 'remove-test': commit((s) => {
         const ids = new Set(s.participants.filter((p) => p.test).map((p) => p.id));
-        if (!ids.size) return false;
+        if (!ids.size && !s.roster.some((r) => r.test)) return false;
+        s.roster = s.roster.filter((r) => !r.test);
         s.participants = s.participants.filter((p) => !ids.has(p.id));
         s.grids.forEach((g) => { g.members = g.members.filter((x) => !ids.has(x)); });
         s.grids = s.grids.filter((g) => g.members.length);
       }, 'Тестовые участники удалены'); break;
-      case 'reset': ask({ title: 'Начать новый турнир?', text: 'Все участники и сетки будут удалены, настройки частей останутся. Перед этим сохраните текущий турнир в файл.', ok: 'Начать новый', danger: true, onOk: () => commit((s) => {
+      case 'reset': ask({ title: 'Начать новый турнир?', text: 'Все участники и сетки будут удалены. Настройки частей и справочник спортсменов останутся. Перед этим сохраните текущий турнир в файл.', ok: 'Начать новый', danger: true, onOk: () => commit((s) => {
         const fresh = GL.defaultState();
         fresh.settings = s.settings;
+        fresh.roster = s.roster;
         fresh.settings.date = todayIso();
         return Object.assign(s, fresh);
       }, 'Новый турнир') }); break;
@@ -690,10 +848,14 @@
 
   app.addEventListener('submit', (e) => {
     if (e.target.id === 'weigh-form') { e.preventDefault(); submitWeigh(e.target); }
+    if (e.target.id === 'roster-form') { e.preventDefault(); submitRoster(e.target); }
   });
 
   app.addEventListener('input', (e) => {
     if (e.target.id === 'search') { ui.search = e.target.value; render(); }
+    if (e.target.id === 'roster-search') { ui.rosterSearch = e.target.value; render(); }
+    if (e.target.id === 'f-last') updateSuggestions();
+    if (e.target.id === 'f-birth' || e.target.id === 'f-part') updatePartHint();
   });
 
   app.addEventListener('change', (e) => {
@@ -709,7 +871,7 @@
       setTimeout(() => commit((s) => { s.settings[key] = val; }), 0);
     } else if (t.dataset.list) {
       const items = t.value.split('\n').map((x) => x.trim()).filter(Boolean);
-      if (!items.length) { toast('Список не может быть пустым'); render(); return; }
+      if (!items.length && (t.dataset.list === 'formats' || t.dataset.list === 'levels')) { toast('В этом списке должно быть хотя бы одно значение'); render(); return; }
       setTimeout(() => commit((s) => { s.settings[t.dataset.list] = items; }), 0);
     } else if (t.dataset.part) {
       const field = t.dataset.field;
@@ -739,9 +901,33 @@
     } else if (t.dataset.psel) {
       if (t.checked) ui.printSel.ids.add(t.dataset.psel); else ui.printSel.ids.delete(t.dataset.psel);
       render();
+    } else if (t.id === 'f-part' || t.id === 'f-birth') {
+      updatePartHint();
     } else if (t.id === 'print-mat') {
       ui.printMat = t.value; render();
     }
+  });
+
+  app.addEventListener('keydown', (e) => {
+    if (e.target.id !== 'f-last' || !acItems.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      acIndex = (acIndex + (e.key === 'ArrowDown' ? 1 : -1) + acItems.length) % acItems.length;
+      drawSuggestions();
+    } else if (e.key === 'Enter' && acIndex >= 0) {
+      e.preventDefault();
+      pickSuggestion(acIndex);
+    } else if (e.key === 'Escape') {
+      e.stopPropagation();
+      hideSuggestions();
+    }
+  });
+  app.addEventListener('mousedown', (e) => {
+    const it = e.target.closest('[data-ac]');
+    if (it) { e.preventDefault(); pickSuggestion(Number(it.dataset.ac)); }
+  });
+  app.addEventListener('focusout', (e) => {
+    if (e.target.id === 'f-last') setTimeout(hideSuggestions, 120);
   });
 
   document.addEventListener('keydown', (e) => {

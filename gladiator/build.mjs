@@ -12,7 +12,8 @@ const safeScript = (js) => js.replace(/<\/script/gi, '<\\/script');
 const head = read('head.html').trim();
 const css = read('style.css');
 const body = read('body.html').trim();
-const scripts = '<script>\n' + safeScript(read('logic.js')) + '\n</script>\n<script>\n' + safeScript(read('app.js')) + '\n</script>';
+const logo = 'data:image/jpeg;base64,' + readFileSync(join(root, 'src', 'logo.jpg')).toString('base64');
+const scripts = '<script>\n' + safeScript(read('logic.js')) + '\n</script>\n<script>\n' + safeScript(read('app.js').replace('__LOGO__', logo)) + '\n</script>';
 
 const page = head + '\n<style>\n' + css + '</style>\n' + body + '\n' + scripts + '\n';
 const full = '<!doctype html>\n<html lang="ru">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n' +

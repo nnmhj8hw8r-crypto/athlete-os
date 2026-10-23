@@ -3,7 +3,7 @@
 (function () {
   'use strict';
 
-  const SCHEMA_VERSION = 1;
+  const SCHEMA_VERSION = 2;
   // «Цена» каждой лишней сетки в разбивке (в кг² разброса веса): чем больше, тем реже сетки по 3.
   const GRID_COST = 1;
   const LETTERS = ['а', 'б', 'в', 'г', 'д', 'е', 'ж', 'з', 'и', 'к', 'л', 'м'];
@@ -29,7 +29,9 @@
         maxSize: 5,
         mats: 3,
         levels: ['Новичок', 'Средний', 'Опытный'],
-        formats: ['На коленках без курток', 'На коленках', 'В стойке'],
+        formats: ['На коленках', 'В стойке'],
+        branches: [],
+        coaches: [],
         parts: [
           { id: 'p1', name: 'Часть 1', yearFrom: 2020, yearTo: 2022, format: 'На коленках', weightMode: 'float', limits: [], maxDiffKg: null },
           { id: 'p2', name: 'Часть 2', yearFrom: 2017, yearTo: 2019, format: 'В стойке', weightMode: 'float', limits: [], maxDiffKg: null },
@@ -40,6 +42,7 @@
       participants: [],
       grids: [],
       builtParts: {},
+      roster: [],
     };
   }
 
@@ -55,7 +58,13 @@
       participants: data.participants,
       grids: Array.isArray(data.grids) ? data.grids : [],
       builtParts: data.builtParts || {},
+      roster: Array.isArray(data.roster) ? data.roster : [],
     };
+    // Версия 1: три формата по умолчанию → два («На коленках», «В стойке»).
+    if ((data.schema || 1) < 2 && JSON.stringify(state.settings.formats) === JSON.stringify(['На коленках без курток', 'На коленках', 'В стойке'])) {
+      const used = state.settings.parts.some((p) => p.format === 'На коленках без курток') || state.grids.some((g) => g.format === 'На коленках без курток');
+      if (!used) state.settings.formats = base.settings.formats.slice();
+    }
     return state;
   }
 
@@ -553,6 +562,67 @@
     return out;
   }
 
+  // ---------- Справочник клуба (база спортсменов) ----------
+
+  function norm(s) {
+    return String(s || '').trim().toLowerCase().replace(/ё/g, 'е');
+  }
+
+  function rosterKey(p) {
+    return norm(p.lastName) + '|' + norm(p.firstName) + '|' + (p.birthDate || '');
+  }
+
+  // Поиск по началу фамилии (или «фамилия имя»), до limit вариантов.
+  function rosterFind(state, query, limit) {
+    const q = norm(query);
+    if (!q) return [];
+    return state.roster
+      .filter((r) => norm(r.lastName + ' ' + r.firstName).startsWith(q) || norm(r.lastName).startsWith(q))
+      .sort((a, b) => fullName(a).localeCompare(fullName(b), 'ru'))
+      .slice(0, limit || 8);
+  }
+
+  // Добавить спортсмена в базу или обновить его данные (филиал, тренер, уровень, пол).
+  function rosterUpsert(state, p) {
+    const key = rosterKey(p);
+    const fields = ['lastName', 'firstName', 'birthDate', 'sex', 'level', 'branch', 'coach'];
+    let r = state.roster.find((x) => rosterKey(x) === key);
+    if (!r) { r = { id: uid('r') }; state.roster.push(r); }
+    for (const f of fields) if (p[f] != null && p[f] !== '') r[f] = p[f];
+    return r;
+  }
+
+  function parseDate(text) {
+    const t = String(text || '').trim();
+    let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t);
+    if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+    m = /^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/.exec(t);
+    if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+    return '';
+  }
+
+  // Список из Excel/таблицы: строки, колонки через Tab, «;» или «,».
+  // Порядок колонок: Фамилия, Имя, Дата рождения, Пол, Уровень, Филиал, Тренер (последние можно не заполнять).
+  function parseRosterText(text) {
+    const items = [];
+    const errors = [];
+    String(text || '').split(/\r?\n/).forEach((line, i) => {
+      if (!line.trim()) return;
+      const sep = line.includes('\t') ? '\t' : line.includes(';') ? ';' : ',';
+      const c = line.split(sep).map((x) => x.trim());
+      if (i === 0 && norm(c[0]) === 'фамилия') return;
+      const birthDate = parseDate(c[2]);
+      if (!c[0] || !birthDate) { errors.push('Строка ' + (i + 1) + ': нужны фамилия и дата рождения (ДД.ММ.ГГГГ)'); return; }
+      const sx = norm(c[3]);
+      items.push({
+        lastName: c[0], firstName: c[1] || '', birthDate,
+        sex: sx.startsWith('ж') || sx.startsWith('д') || sx === 'f' ? 'Ж' : 'М',
+        level: c[4] || '', branch: c[5] || '', coach: c[6] || '',
+      });
+    });
+    return { items, errors };
+  }
+
   const GL = {
     SCHEMA_VERSION, uid, defaultState, migrate, clone,
     birthYear, formatRuDate, formatBirth, toRoman, fullName, partYearsLabel,
@@ -561,6 +631,7 @@
     roundRobin, bouts, distributeMats, matLoads,
     gridOfParticipant, detach, placeIncremental, rebuildGroup,
     integrity, findDuplicate, testParticipants,
+    rosterFind, rosterUpsert, rosterKey, parseRosterText, parseDate,
   };
   globalThis.GL = GL;
 })();

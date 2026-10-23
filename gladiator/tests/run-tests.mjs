@@ -161,3 +161,32 @@ test('одиночку без пары оставляем видимой про�
   assert.equal(info.small.length, 1);
   assert.equal(info.inGrids, 4);
 });
+
+test('список из Excel: даты в разных видах, заголовок пропускается, ошибки называются', () => {
+  const { items, errors } = GL.parseRosterText('Фамилия\tИмя\tДата\nПанков\tМирон\t04.03.2021\tМ\tНовичок\tФилиал 1\tИванов\nПепеляева;Мария;2020-1-5;ж\nБездаты\tИван\t\n');
+  assert.equal(items.length, 2);
+  assert.equal(items[0].birthDate, '2021-03-04');
+  assert.equal(items[1].birthDate, '2020-01-05');
+  assert.equal(items[1].sex, 'Ж');
+  assert.equal(errors.length, 1);
+});
+
+test('справочник: повторное добавление обновляет запись, поиск по началу фамилии без учёта ё', () => {
+  const s = GL.defaultState();
+  GL.rosterUpsert(s, { lastName: 'Сёмин', firstName: 'Лев', birthDate: '2019-02-02', sex: 'М', branch: 'Филиал 1' });
+  GL.rosterUpsert(s, { lastName: 'Семин', firstName: 'Лев', birthDate: '2019-02-02', branch: 'Филиал 2' });
+  assert.equal(s.roster.length, 1);
+  assert.equal(s.roster[0].branch, 'Филиал 2');
+  assert.equal(GL.rosterFind(s, 'сем').length, 1);
+  assert.equal(GL.rosterFind(s, 'лев').length, 0);
+});
+
+test('файл версии 1 открывается: два формата борьбы вместо трёх', () => {
+  const old = GL.defaultState();
+  old.schema = 1;
+  old.settings.formats = ['На коленках без курток', 'На коленках', 'В стойке'];
+  delete old.roster;
+  const s = GL.migrate(JSON.parse(JSON.stringify(old)));
+  assert.deepEqual(s.settings.formats, ['На коленках', 'В стойке']);
+  assert.deepEqual(s.roster, []);
+});
