@@ -1,6 +1,6 @@
 // План недели: на каждый день — программы на утро, день и вечер; отметка выполнения по журналу.
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { db } from '../../data/db.ts';
 import { deleteEntity, saveEntity } from '../../data/repo.ts';
 import { copyWeekPlan } from '../../data/training.ts';
@@ -18,6 +18,27 @@ const WEEKDAY_FULL = ['Понедельник', 'Вторник', 'Среда', 
 
 /** Время начала по умолчанию для слота дня (по Москве). */
 const SLOT_TIME: Record<ScheduleSlot, string> = { morning: '09:00', day: '13:00', evening: '18:00' };
+const SLOT_HINT: Record<ScheduleSlot, string> = { morning: 'до 12:00', day: '12:00–17:00', evening: 'после 17:00' };
+
+/** Значки времени суток (v0.9.4): восход, солнце, луна — линиями в стиле остальных иконок. */
+const SLOT_ICON: Record<ScheduleSlot, ReactNode> = {
+  morning: (
+    <svg viewBox="0 0 24 24">
+      <path d="M3 18h18M7 18a5 5 0 0 1 10 0M12 6v3M5.6 10.6l1.8 1.4M18.4 10.6l-1.8 1.4" />
+    </svg>
+  ),
+  day: (
+    <svg viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4" />
+    </svg>
+  ),
+  evening: (
+    <svg viewBox="0 0 24 24">
+      <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
+    </svg>
+  ),
+};
 
 export function WeekTab({ onStartFree }: { onStartFree: () => void }) {
   const today = todayKey();
@@ -67,7 +88,7 @@ export function WeekTab({ onStartFree }: { onStartFree: () => void }) {
           {days.map((d, i) => {
             const planned = schedule.filter((e) => e.date === d);
             const done = planned.filter((e) => doneBySchedule.has(e.id)).length + workouts.filter((w) => toDateKey(w.startAt) === d && !w.scheduleId).length;
-            const first = planned[0] ? programById.get(planned[0].programId) : undefined;
+            const state = done && done >= planned.length ? 'wd-done' : planned.length ? (done ? 'wd-partial' : 'wd-planned') : 'wd-empty';
             return (
               <button
                 key={d}
@@ -76,9 +97,16 @@ export function WeekTab({ onStartFree }: { onStartFree: () => void }) {
                 onClick={() => setDate(d)}
                 aria-label={`${WEEKDAY_FULL[i]}, ${formatDateKey(d)}${planned.length ? `, в плане: ${planned.length}` : ''}`}
               >
-                <span>{d === today ? 'Сегодня' : WEEKDAY_SHORT[i]}</span>
-                <span className={`plan-dot${done ? ' done' : planned.length ? ' planned' : ''}`} />
-                <span className="plan-mark">{first ? first.name.trim().charAt(0).toUpperCase() : planned.length ? '•' : '–'}</span>
+                <span className="wd-name">{WEEKDAY_SHORT[i]}</span>
+                <span className={`wd-circle ${state}`}>{Number(d.slice(8))}</span>
+                {/* Три точки — утро, день, вечер: что запланировано и что сделано. */}
+                <span className="wd-slots" aria-hidden="true">
+                  {SCHEDULE_SLOTS.map((slot) => {
+                    const inSlot = planned.filter((e) => e.slot === slot);
+                    const cls = inSlot.length === 0 ? '' : inSlot.every((e) => doneBySchedule.has(e.id)) ? ' done' : ' planned';
+                    return <i key={slot} className={cls} />;
+                  })}
+                </span>
               </button>
             );
           })}
@@ -102,9 +130,15 @@ export function WeekTab({ onStartFree }: { onStartFree: () => void }) {
       {SCHEDULE_SLOTS.map((slot) => {
         const entries = dayEntries.filter((e) => e.slot === slot);
         return (
-          <section key={slot} className="slot">
+          <section key={slot} className={`slot slot-${slot}`}>
             <div className="slot-head">
-              <h3>{SCHEDULE_SLOT_LABEL[slot]}</h3>
+              <h3>
+                <span className="slot-icon" aria-hidden="true">
+                  {SLOT_ICON[slot]}
+                </span>
+                {SCHEDULE_SLOT_LABEL[slot]}
+                <small>{SLOT_HINT[slot]}</small>
+              </h3>
               <button type="button" className="btn ghost small" onClick={() => setAdding(slot)}>
                 {Icons.plus} В план
               </button>

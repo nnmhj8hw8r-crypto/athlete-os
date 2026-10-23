@@ -1,4 +1,4 @@
-// Страница упражнения: схема мышц, заметки о технике, история и график.
+// Страница упражнения: крупная иконка, параметры, заметки о технике, схема мышц, история и график.
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { db } from '../../data/db.ts';
@@ -7,14 +7,16 @@ import { EXERCISE_NOTES_KEY, getExerciseNotes, setExerciseNote } from '../../dat
 import { EXERCISE_GROUP_LABEL, EXERCISE_METRIC_LABEL, exerciseHistory, exerciseProgress, formatClock, formatSet } from '../../domain/training.ts';
 import { formatDateKey, formatDateTime, toDateKey } from '../../domain/time.ts';
 import { EXERCISE_IMAGE_LICENSE_URL, exerciseImageCredit, exerciseImagePath } from '../../domain/exerciseImages.ts';
-import { BodyFigure, ExercisePose, MuscleMapCredit } from '../../ui/BodyFigure.tsx';
+import { ExercisePose } from '../../ui/BodyFigure.tsx';
+import { exerciseMarks, RealFigure } from '../../ui/RealFigure.tsx';
+import { useProfile } from '../onboarding/useProfile.ts';
 import { hasPictogram, Pictogram } from '../../ui/Pictograms.tsx';
 import { EmptyState, TopBar } from '../../ui/components.tsx';
 import { useConfirmDelete, useFeedback } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
 import { LineChart } from '../../ui/LineChart.tsx';
 import { navigate, type Route } from '../../ui/router.ts';
-import { ExerciseFormDialog, MUSCLE_LABEL, useCatalogMap } from './catalog.tsx';
+import { ExerciseFormDialog, ExIcon, MUSCLE_LABEL, useCatalogMap } from './catalog.tsx';
 
 const r1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString('ru-RU');
 
@@ -26,6 +28,7 @@ export function ExercisePage({ route }: { route: Route }) {
   const workouts = useLiveQuery(() => db.workouts.toArray(), []);
   const [editing, setEditing] = useState(false);
   const confirmDelete = useConfirmDelete();
+  const sex = useProfile()?.sex ?? 'male';
 
   if (!ex) {
     return (
@@ -62,29 +65,67 @@ export function ExercisePage({ route }: { route: Route }) {
           ) : undefined
         }
       />
+      {/* v0.9.4: сверху крупная иконка упражнения и название, ниже — параметры, техника, мышцы, история. */}
       <div className="ex-hero">
-        {pose && <ExercisePose src={pose} credit={exerciseImageCredit(ex.id)} licenseUrl={EXERCISE_IMAGE_LICENSE_URL} />}
-        {!pose && hasPictogram(ex.id) && (
+        {pose ? (
+          <ExercisePose src={pose} credit={exerciseImageCredit(ex.id)} licenseUrl={EXERCISE_IMAGE_LICENSE_URL} />
+        ) : hasPictogram(ex.id) ? (
           <ExercisePose credit="Пиктограмма приложения">
             <Pictogram exerciseId={ex.id} primary={ex.muscles} secondary={ex.musclesSecondary} />
           </ExercisePose>
+        ) : (
+          <ExIcon ex={ex} size="lg" />
         )}
-        <BodyFigure primary={ex.muscles} secondary={ex.musclesSecondary} view="both" className="ex-hero-figure" title={`Мышцы: ${ex.name}`} />
-        <MuscleMapCredit />
         <h1 className="ex-title">{ex.name}</h1>
-        <p className="muted">
-          {EXERCISE_GROUP_LABEL[ex.group]} · {EXERCISE_METRIC_LABEL[ex.metric]}
-          {!ex.builtIn && ' · своё'}
-        </p>
-        {(ex.muscles.length > 0 || ex.musclesSecondary.length > 0) && (
-          <p className="small">
-            {ex.muscles.length > 0 && <>Основные: {ex.muscles.map((m) => MUSCLE_LABEL[m]).join(', ')}. </>}
-            {ex.musclesSecondary.length > 0 && <>Вспомогательные: {ex.musclesSecondary.map((m) => MUSCLE_LABEL[m]).join(', ')}.</>}
-          </p>
-        )}
       </div>
 
+      <section className="card ex-params" aria-label="Параметры упражнения">
+        <div className="row-between">
+          <h2>Параметры</h2>
+          {own && (
+            <button type="button" className="btn small" onClick={() => setEditing(true)}>
+              {Icons.edit} Изменить
+            </button>
+          )}
+        </div>
+        <dl>
+          <div>
+            <dt>Раздел</dt>
+            <dd>{EXERCISE_GROUP_LABEL[ex.group]}</dd>
+          </div>
+          <div>
+            <dt>Что записывать</dt>
+            <dd>{EXERCISE_METRIC_LABEL[ex.metric]}</dd>
+          </div>
+          {ex.muscles.length > 0 && (
+            <div>
+              <dt>Основные мышцы</dt>
+              <dd>{ex.muscles.map((m) => MUSCLE_LABEL[m]).join(', ')}</dd>
+            </div>
+          )}
+          {ex.musclesSecondary.length > 0 && (
+            <div>
+              <dt>Вспомогательные</dt>
+              <dd>{ex.musclesSecondary.map((m) => MUSCLE_LABEL[m]).join(', ')}</dd>
+            </div>
+          )}
+          <div>
+            <dt>Источник</dt>
+            <dd>{ex.builtIn ? 'встроенное' : 'своё упражнение'}</dd>
+          </div>
+        </dl>
+        {!own && <p className="small muted">Встроенное упражнение не меняется. Нужны другие параметры — создайте своё в списке упражнений.</p>}
+      </section>
+
       <TechniqueNotes exerciseId={id} />
+
+      {(ex.muscles.length > 0 || ex.musclesSecondary.length > 0) && (
+        <section className="section">
+          <h2>Какие мышцы работают</h2>
+          <RealFigure sex={sex} marks={exerciseMarks(ex.muscles, ex.musclesSecondary)} className="ex-real" title={`Мышцы: ${ex.name}`} />
+          <p className="small muted">Ярче — основные мышцы, бледнее — вспомогательные.</p>
+        </section>
+      )}
 
       <section className="section">
         <h2>История</h2>

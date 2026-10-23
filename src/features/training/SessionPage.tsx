@@ -21,7 +21,9 @@ import {
 } from '../../domain/training.ts';
 import { formatDateTime, fromLocalInputValue, toLocalInputValue } from '../../domain/time.ts';
 import { EXERCISE_IMAGE_LICENSE_URL, exerciseImageCredit, exerciseImagePath } from '../../domain/exerciseImages.ts';
-import { BodyFigure, ExercisePose, MuscleMapCredit } from '../../ui/BodyFigure.tsx';
+import { ExercisePose } from '../../ui/BodyFigure.tsx';
+import { exerciseMarks, RealFigure } from '../../ui/RealFigure.tsx';
+import { useProfile } from '../onboarding/useProfile.ts';
 import { hasPictogram, Pictogram } from '../../ui/Pictograms.tsx';
 import { EmptyState, Field, FormError, Modal, TopBar } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
@@ -344,6 +346,7 @@ function ExerciseView({ session, index, ex, setExercises, rest }: ExerciseViewPr
   const prev = history[0];
   const [modal, setModal] = useState<'technique' | 'history' | 'replace' | null>(null);
   const { confirm } = useFeedback();
+  const sex = useProfile()?.sex ?? 'male';
   const list = session.draft.exercises;
   const next = list[index + 1];
 
@@ -432,6 +435,7 @@ function ExerciseView({ session, index, ex, setExercises, rest }: ExerciseViewPr
           />
         ))}
       </ul>
+      <ActiveSet sets={ex.sets} metric={metric} prev={prev?.sets} onChange={patchSet} onDone={toggleDone} />
       <div className="row">
         <button
           type="button"
@@ -494,8 +498,7 @@ function ExerciseView({ session, index, ex, setExercises, rest }: ExerciseViewPr
               <Pictogram exerciseId={ex.exerciseId} primary={cat.muscles} secondary={cat.musclesSecondary} />
             </ExercisePose>
           )}
-          {cat && <BodyFigure primary={cat.muscles} secondary={cat.musclesSecondary} view="both" className="ex-hero-figure" />}
-          {cat && <MuscleMapCredit />}
+          {cat && <RealFigure sex={sex} marks={exerciseMarks(cat.muscles, cat.musclesSecondary)} className="ex-real" title={`Мышцы: ${ex.name}`} />}
           <TechniqueNotes exerciseId={ex.exerciseId} />
           <p className="small muted">Видео техники появится в следующих версиях.</p>
         </Modal>
@@ -519,6 +522,76 @@ function ExerciseView({ session, index, ex, setExercises, rest }: ExerciseViewPr
         </Modal>
       )}
       {modal === 'replace' && <ExercisePicker title="Заменить упражнение" onClose={() => setModal(null)} onPick={replace} />}
+    </div>
+  );
+}
+
+/** Шаги кнопок «−/+»: вес — 2,5 кг (меньший блин пары), повторы — 1. */
+const WEIGHT_STEP = 2.5;
+
+/**
+ * Текущий подход крупно (v0.9.4, по мотивам Strong/Hevy): первый невыполненный подход — вес и повторы
+ * кнопками «−/+» без клавиатуры и большая кнопка «Подход выполнен». Начальные значения — как в прошлый раз.
+ */
+function ActiveSet({
+  sets,
+  metric,
+  prev,
+  onChange,
+  onDone,
+}: {
+  sets: readonly WorkoutSet[];
+  metric: ExerciseMetric;
+  prev?: readonly WorkoutSet[];
+  onChange: (si: number, p: Partial<WorkoutSet>) => void;
+  onDone: (si: number) => void;
+}) {
+  const si = sets.findIndex((x) => !x.done);
+  if (si < 0) return <p className="active-set-done">Все подходы выполнены — добавьте ещё или переходите дальше.</p>;
+  const set = sets[si]!;
+  const p = prev?.[si] ?? prev?.[prev.length - 1];
+  // Следующий подход начинается с веса только что сделанного — обычно его и повторяют.
+  const before = si > 0 ? sets[si - 1] : undefined;
+  const weight = set.weightKg ?? before?.weightKg ?? p?.weightKg ?? 0;
+  const reps = set.reps ?? before?.reps ?? p?.reps ?? 0;
+  const word = metric === 'rounds' ? 'Встреча' : 'Подход';
+  return (
+    <section className="active-set" aria-label={`${word} ${si + 1}`}>
+      <span className="active-set-title">
+        {word} {si + 1} из {sets.length}
+      </span>
+      {(metric === 'weight_reps' || metric === 'reps') && (
+        <div className="active-set-steppers">
+          {metric === 'weight_reps' && (
+            <Stepper label="Вес" unit="кг" value={weight} step={WEIGHT_STEP} onChange={(v) => onChange(si, { weightKg: v, reps })} />
+          )}
+          <Stepper label="Повторения" unit="раз" value={reps} step={1} onChange={(v) => onChange(si, { reps: v, ...(metric === 'weight_reps' && { weightKg: weight }) })} />
+        </div>
+      )}
+      <button type="button" className="btn primary big" onClick={() => onDone(si)}>
+        {Icons.check} {word} выполнен{metric === 'rounds' ? 'а' : ''}
+      </button>
+    </section>
+  );
+}
+
+function Stepper({ label, unit, value, step, onChange }: { label: string; unit: string; value: number; step: number; onChange: (v: number) => void }) {
+  const fmt = (v: number) => (Math.round(v * 10) / 10).toLocaleString('ru-RU');
+  return (
+    <div className="set-stepper">
+      <span className="set-stepper-label">{label}</span>
+      <div className="set-stepper-row">
+        <button type="button" className="set-stepper-btn" aria-label={`${label}: меньше`} onClick={() => onChange(Math.max(0, Math.round((value - step) * 10) / 10))}>
+          −
+        </button>
+        <b className="set-stepper-value">
+          {fmt(value)}
+          <small>{unit}</small>
+        </b>
+        <button type="button" className="set-stepper-btn" aria-label={`${label}: больше`} onClick={() => onChange(Math.round((value + step) * 10) / 10)}>
+          +
+        </button>
+      </div>
     </div>
   );
 }
@@ -587,6 +660,8 @@ function NumInput({ label, unit, value, placeholder, decimal, onChange }: { labe
       <input
         aria-label={label}
         inputMode={decimal ? 'decimal' : 'numeric'}
+        enterKeyHint="done"
+        onFocus={(e) => e.target.select()}
         value={text}
         placeholder={placeholder !== undefined ? numberToField(placeholder) : '0'}
         onChange={(e) => {

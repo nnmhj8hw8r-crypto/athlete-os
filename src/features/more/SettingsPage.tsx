@@ -165,6 +165,7 @@ export function SettingsPage() {
 
       <Card title="Источники данных и лицензии">
         <ul className="sources">
+          <li>Реалистичные анатомические фигуры (мужская и женская) — изображения, предоставленные автором приложения; женская собрана зеркально из половины фигуры, подписи убраны.</li>
           <li>
             Рисунки упражнений — <a href="https://github.com/everkinetic/data" target="_blank" rel="noreferrer">Everkinetic</a>{' '}
             (Greg Priday),{' '}

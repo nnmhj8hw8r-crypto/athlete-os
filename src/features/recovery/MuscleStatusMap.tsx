@@ -4,6 +4,8 @@
 import { useEffect, useRef, type MouseEvent } from 'react';
 import { MUSCLES, type Muscle } from '../../domain/schemas.ts';
 import { EXTRA, LAYERS, muscleUrl, type View } from '../../ui/BodyFigure.tsx';
+import { RealFigure, type Tone } from '../../ui/RealFigure.tsx';
+import { useProfile } from '../onboarding/useProfile.ts';
 
 export type Level = 0 | 1 | 2 | 3;
 
@@ -112,6 +114,21 @@ function FigureView({ view, levels, sore, onPick, caption }: { view: View; level
 }
 
 export function MuscleStatusMap({ levels, sore = [], onPick, captions = true }: Props) {
+  // v0.9.4: реалистичная фигура (мужская или женская по профилю): нагрузка — затемнением, «болит» — красным.
+  const sex = useProfile()?.sex ?? 'male';
+  const marks: Partial<Record<Muscle, Tone[]>> = {};
+  for (const m of MUSCLES) {
+    const t: Tone[] = [];
+    const l = levels[m] ?? 0;
+    if (l > 0) t.push(`lvl-${l}` as Tone);
+    if (sore.includes(m)) t.push('sore');
+    if (t.length) marks[m] = t;
+  }
+  return <RealFigure sex={sex} marks={marks} onPick={onPick} captions={captions} className="status-real" title="Состояние мышц" />;
+}
+
+/** Прежняя схема (слои wger) — оставлена для сравнения и мелких значков. */
+export function MuscleStatusMapLegacy({ levels, sore = [], onPick, captions = true }: Props) {
   return (
     <span className="body-figure views-2 status-figure">
       <FigureView view="front" levels={levels} sore={sore} onPick={onPick} caption={captions} />

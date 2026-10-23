@@ -1,11 +1,12 @@
-// Собственные пиктограммы поз для упражнений без рисунка в открытых наборах (кардио).
+// Собственные пиктограммы поз для упражнений без рисунка в открытых наборах (кардио, борьба — v0.9.4).
 // Фигура — толстые линии со скруглёнными концами в стиле спортивных пиктограмм; тренажёр — серым;
 // работающие части тела подсвечиваются по мышцам упражнения (основные — красным, вспомогательные — светлым).
+// В борцовских — второй человек (партнёр) серым позади: двое в захватах, бросок, борьба в партере.
 import type { Muscle } from '../domain/schemas.ts';
 
 type P = [number, number];
 
-interface Pose {
+interface Body {
   head: P;
   neck: P;
   hip: P;
@@ -14,12 +15,59 @@ interface Pose {
   armFar: [shoulder: P, elbow: P, hand: P];
   legNear: [knee: P, ankle: P, toe?: P];
   legFar: [knee: P, ankle: P, toe?: P];
+}
+
+interface Pose extends Body {
   /** Тренажёр и окружение: пути SVG (серые) и окружности [cx, cy, r]. */
   props?: string[];
   wheels?: [number, number, number][];
   /** Пути «поверх» фигуры (скакалка, ручки). */
   front?: string[];
+  /** Партнёр — второй человек серым, рисуется позади. */
+  partner?: Body;
+  /** Тоньше линии — когда в кадре двое. */
+  thin?: boolean;
 }
+
+/** Зеркало фигуры по вертикальной оси (партнёр лицом к лицу); dx — сдвиг вправо. */
+function mirror(b: Body, dx = 0): Body {
+  const m = (q: P): P => [100 - q[0] + dx, q[1]];
+  return {
+    head: m(b.head),
+    neck: m(b.neck),
+    hip: m(b.hip),
+    armNear: [m(b.armNear[0]), m(b.armNear[1]), m(b.armNear[2])],
+    armFar: [m(b.armFar[0]), m(b.armFar[1]), m(b.armFar[2])],
+    legNear: [m(b.legNear[0]), m(b.legNear[1]), ...(b.legNear[2] ? [m(b.legNear[2])] : [])] as Body['legNear'],
+    legFar: [m(b.legFar[0]), m(b.legFar[1]), ...(b.legFar[2] ? [m(b.legFar[2])] : [])] as Body['legFar'],
+  };
+}
+
+/** Борец в стойке лицом вправо, руки в захвате (ворот и рукав партнёра). */
+const GRIP: Body = {
+  head: [33, 22], neck: [35, 29], hip: [32, 54],
+  armNear: [[36, 32], [44, 37], [52, 31]], armFar: [[35, 32], [42, 43], [50, 45]],
+  legNear: [[38, 70], [36, 86], [42, 87]], legFar: [[27, 69], [23, 85], [29, 86]],
+};
+/** Борьба за захват: руки выше, на уровне рук партнёра. */
+const GRIP_HANDS: Body = { ...GRIP, armNear: [[36, 32], [45, 30], [53, 26]], armFar: [[35, 32], [44, 38], [53, 36]] };
+/** Сверху в партере (раскрашивается) и снизу на спине (партнёр). */
+const TOP: Body = {
+  head: [48, 42], neck: [50, 49], hip: [64, 58],
+  armNear: [[51, 52], [44, 60], [37, 67]], armFar: [[50, 52], [41, 62], [31, 71]],
+  legNear: [[58, 73], [72, 76], [74, 72]], legFar: [[70, 72], [82, 74], [84, 70]],
+};
+const BOTTOM: Body = {
+  head: [20, 76], neck: [27, 76], hip: [52, 79],
+  armNear: [[30, 76], [36, 69], [43, 66]], armFar: [[29, 77], [35, 84], [42, 86]],
+  legNear: [[66, 72], [79, 80], [83, 77]], legFar: [[66, 82], [80, 86], [84, 84]],
+};
+/** Верх тела на канате: обе руки держат канат над головой. */
+const ROPE: Pick<Body, 'head' | 'neck' | 'hip' | 'armNear' | 'armFar'> = {
+  head: [43, 30], neck: [44, 37], hip: [45, 60],
+  armNear: [[46, 40], [53, 31], [50, 18]], armFar: [[45, 40], [53, 40], [50, 30]],
+};
+const floor = 'M8 90h84';
 
 const treadmill = ['M18 84h62', 'M76 84L82 48', 'M82 48h-9'];
 
@@ -87,6 +135,45 @@ const POSES: Record<string, Pose> = {
     legNear: [[58, 53], [59, 64], [64, 64]], legFar: [[48, 62], [43, 76], [48, 76]],
     props: ['M22 88H42V76H54V64H66V52H78V40H88'],
   },
+
+  // ---------- Борьба: двое в захватах, бросок, партер, мост, канат ----------
+  technique: { ...GRIP, partner: mirror(GRIP), thin: true, props: [floor] },
+  'randori-standing': { ...GRIP, partner: mirror(GRIP), thin: true, props: [floor] },
+  sparring: { ...GRIP, partner: mirror(GRIP), thin: true, props: [floor] },
+  uchikomi: {
+    ...GRIP,
+    hip: [36, 54],
+    legNear: [[44, 68], [46, 86], [52, 87]], legFar: [[30, 70], [26, 86], [32, 87]],
+    partner: mirror(GRIP, 4), thin: true, props: [floor],
+  },
+  'grip-fight': { ...GRIP_HANDS, partner: mirror(GRIP_HANDS), thin: true, props: [floor] },
+  nagekomi: {
+    head: [42, 33], neck: [44, 40], hip: [37, 61],
+    armNear: [[46, 43], [56, 39], [62, 33]], armFar: [[45, 43], [52, 50], [60, 48]],
+    legNear: [[43, 75], [41, 88], [47, 89]], legFar: [[31, 75], [27, 88], [33, 89]],
+    partner: {
+      head: [76, 33], neck: [69, 30], hip: [46, 24],
+      armNear: [[67, 30], [66, 38], [62, 42]], armFar: [[68, 31], [74, 39], [76, 45]],
+      legNear: [[33, 16], [22, 10], [18, 13]], legFar: [[34, 26], [21, 24], [18, 28]],
+    },
+    thin: true, props: [floor],
+  },
+  'ne-waza-drill': { ...TOP, partner: BOTTOM, thin: true, props: [floor] },
+  'randori-ground': { ...TOP, partner: BOTTOM, thin: true, props: [floor] },
+  bridge: {
+    head: [24, 82], neck: [29, 74], hip: [57, 58],
+    armNear: [[32, 71], [40, 68], [47, 66]], armFar: [[31, 72], [39, 71], [46, 70]],
+    legNear: [[70, 70], [76, 86], [82, 87]], legFar: [[66, 73], [71, 86], [77, 87]],
+    props: [floor],
+  },
+  'rope-climb': { ...ROPE, legNear: [[54, 70], [50, 82], [56, 84]], legFar: [[40, 71], [50, 80]], props: ['M50 2V98'] },
+  'rope-climb-nolegs': { ...ROPE, legNear: [[47, 76], [47, 91]], legFar: [[44, 76], [43, 91]], props: ['M50 2V98'] },
+  'warmup-acrobatics': {
+    head: [40, 72], neck: [44, 65], hip: [58, 56],
+    armNear: [[46, 66], [42, 78], [38, 88]], armFar: [[45, 66], [49, 78], [52, 88]],
+    legNear: [[52, 44], [63, 40], [67, 44]], legFar: [[57, 46], [67, 44], [71, 48]],
+    props: [floor],
+  },
 };
 
 export const PICTOGRAM_SLUGS: readonly string[] = Object.keys(POSES);
@@ -110,6 +197,35 @@ function tone(set: ReadonlySet<Muscle>, primary: readonly Muscle[], secondary: r
 
 const line = (a: P, b: P) => `M${a[0]} ${a[1]}L${b[0]} ${b[1]}`;
 
+type Tones = Record<'leg' | 'shin' | 'upper' | 'fore' | 'torso', string>;
+
+/** Одна фигура: дальние рука и нога, корпус с головой, ближние рука и нога. */
+function Figure({ body, t, head }: { body: Body; t: Tones; head: number }) {
+  const limb = (side: 'near' | 'far') => {
+    const arm = side === 'near' ? body.armNear : body.armFar;
+    const leg = side === 'near' ? body.legNear : body.legFar;
+    return (
+      <g className={side === 'far' ? 'pg-far' : 'pg-near'}>
+        <path className={t.leg} d={line(body.hip, leg[0])} />
+        <path className={t.shin} d={line(leg[0], leg[1])} />
+        {leg[2] && <path className={t.shin} d={line(leg[1], leg[2])} strokeWidth={5} />}
+        <path className={t.upper} d={line(arm[0], arm[1])} strokeWidth={6.5} />
+        <path className={t.fore} d={line(arm[1], arm[2])} strokeWidth={5.5} />
+      </g>
+    );
+  };
+  return (
+    <>
+      {limb('far')}
+      <g className="pg-near">
+        <path className={t.torso} d={line(body.neck, body.hip)} strokeWidth={10} />
+        <circle className="pg-head" cx={body.head[0]} cy={body.head[1]} r={head} />
+      </g>
+      {limb('near')}
+    </>
+  );
+}
+
 export function Pictogram({ exerciseId, primary, secondary = [] }: { exerciseId: string; primary: readonly Muscle[]; secondary?: readonly Muscle[] }) {
   const pose = POSES[exerciseId.replace(/^lib:/, '')];
   if (!pose) return null;
@@ -120,32 +236,20 @@ export function Pictogram({ exerciseId, primary, secondary = [] }: { exerciseId:
     fore: tone(FOREARM, primary, secondary),
     torso: tone(TORSO, primary, secondary),
   };
-  const limb = (side: 'near' | 'far') => {
-    const arm = side === 'near' ? pose.armNear : pose.armFar;
-    const leg = side === 'near' ? pose.legNear : pose.legFar;
-    const cls = side === 'far' ? 'pg-far' : 'pg-near';
-    return (
-      <g className={cls}>
-        <path className={t.leg} d={line(pose.hip, leg[0])} />
-        <path className={t.shin} d={line(leg[0], leg[1])} />
-        {leg[2] && <path className={t.shin} d={line(leg[1], leg[2])} strokeWidth={5} />}
-        <path className={t.upper} d={line(arm[0], arm[1])} strokeWidth={6.5} />
-        <path className={t.fore} d={line(arm[1], arm[2])} strokeWidth={5.5} />
-      </g>
-    );
-  };
+  const plain: Tones = { leg: '', shin: '', upper: '', fore: '', torso: '' };
+  const head = pose.thin ? 5.5 : 6.5;
   return (
-    <svg className="pictogram" viewBox="0 0 100 100" aria-hidden="true">
+    <svg className={pose.thin ? 'pictogram pg-thin' : 'pictogram'} viewBox="0 0 100 100" aria-hidden="true">
       <g className="pg-props">
         {pose.props?.map((d) => <path key={d} d={d} />)}
         {pose.wheels?.map(([cx, cy, r]) => <circle key={`${cx}-${cy}`} cx={cx} cy={cy} r={r} />)}
       </g>
-      {limb('far')}
-      <g className="pg-near">
-        <path className={t.torso} d={line(pose.neck, pose.hip)} strokeWidth={10} />
-        <circle className="pg-head" cx={pose.head[0]} cy={pose.head[1]} r={6.5} />
-      </g>
-      {limb('near')}
+      {pose.partner && (
+        <g className="pg-partner">
+          <Figure body={pose.partner} t={plain} head={head} />
+        </g>
+      )}
+      <Figure body={pose} t={t} head={head} />
       {pose.front && (
         <g className="pg-props pg-front">
           {pose.front.map((d) => (

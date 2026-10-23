@@ -109,34 +109,56 @@ export function RecoveryPage({ route }: { route: Route }) {
 function Trends({ entries }: { entries: SleepEntry[] }) {
   const last = recoveryAverages(entries.slice(0, 7));
   const prev = recoveryAverages(entries.slice(7, 14));
-  const fmt = (v: number | null, kind: 'min' | 'score') => (v === null ? '—' : kind === 'min' ? formatDuration(v) : `${v.toLocaleString('ru-RU')}/5`);
-  const rows: { label: string; a: string; b: string }[] = [
-    { label: 'Время в постели', a: fmt(last.timeInBedMin, 'min'), b: fmt(prev.timeInBedMin, 'min') },
-    ...RATING_FIELDS.map((k) => ({ label: RATING_META[k].label, a: fmt(last[k], 'score'), b: fmt(prev[k], 'score') })),
+  const fmt = (v: number | null, kind: 'min' | 'score') => (v === null ? '—' : kind === 'min' ? formatDuration(v) : `${v.toLocaleString('ru-RU')} из 5`);
+  // Разница «сейчас минус раньше»: время — в минутах, оценки — в баллах. Без «лучше/хуже»: это описание.
+  const diff = (a: number | null, b: number | null, kind: 'min' | 'score') => {
+    if (a === null || b === null) return '';
+    const d = a - b;
+    if (Math.abs(d) < (kind === 'min' ? 5 : 0.1)) return 'без изменений';
+    const sign = d > 0 ? '+' : '−';
+    return kind === 'min' ? `${sign}${formatDuration(Math.abs(Math.round(d)))}` : `${sign}${(Math.round(Math.abs(d) * 10) / 10).toLocaleString('ru-RU')}`;
+  };
+  const rows: { label: string; a: string; b: string; d: string }[] = [
+    { label: 'Время в постели', a: fmt(last.timeInBedMin, 'min'), b: fmt(prev.timeInBedMin, 'min'), d: diff(last.timeInBedMin, prev.timeInBedMin, 'min') },
+    ...RATING_FIELDS.map((k) => ({ label: RATING_META[k].label, a: fmt(last[k], 'score'), b: fmt(prev[k], 'score'), d: diff(last[k], prev[k], 'score') })),
   ];
   return (
     <Card title="Тенденции">
-      <table className="set-table">
+      <p className="small muted">
+        Средние значения: последние {last.count} {nightsWord(last.count)} и {prev.count ? `${prev.count} ${nightsWord(prev.count)} до них` : 'ночи до них (пока нет записей)'}.
+      </p>
+      <table className="set-table trends-table">
         <thead>
           <tr>
-            <th>Показатель</th>
-            <th>Последние {last.count}</th>
-            <th>{prev.count ? `Предыдущие ${prev.count}` : 'Предыдущие'}</th>
+            <th scope="col">Показатель</th>
+            <th scope="col">Сейчас</th>
+            <th scope="col">Раньше</th>
+            <th scope="col">Разница</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.label}>
-              <td>{r.label}</td>
+              <th scope="row">{r.label}</th>
               <td className="num">{r.a}</td>
-              <td className="num">{r.b}</td>
+              <td className="num muted">{r.b}</td>
+              <td className="num">{r.d}</td>
             </tr>
           ))}
         </tbody>
       </table>
       <p className="small muted">
-        Средние по вашим записям — описание, а не диагноз. Одна-две записи не говорят о перетренированности, а совпадение двух показателей не доказывает причину.
+        «Сейчас» — последние до 7 записей сна, «Раньше» — 7 записей перед ними. Оценки — ваши отметки от 1 до 5. Это описание, а не
+        диагноз: одна-две записи не говорят о перетренированности, а совпадение двух показателей не доказывает причину.
       </p>
     </Card>
   );
+}
+
+function nightsWord(n: number): string {
+  const m10 = n % 10;
+  const m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return 'ночь';
+  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'ночи';
+  return 'ночей';
 }
