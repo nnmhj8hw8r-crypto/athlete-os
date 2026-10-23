@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LAYOUT } from './dashboard.ts';
-import { defaultLevel, emptyLayout, feedbackUrl, normalizeProfile, recommendedWidgets, revealFullWidgets, shouldAskFeedback } from './profile.ts';
+import { defaultLevel, emptyLayout, sexFromAnswer, feedbackUrl, normalizeProfile, recommendedWidgets, revealFullWidgets, shouldAskFeedback } from './profile.ts';
 
 const visible = (l: { id: string; visible: boolean }[]) => l.filter((w) => w.visible).map((w) => w.id);
 
@@ -41,6 +41,14 @@ describe('профиль из приветствия', () => {
     expect(shouldAskFeedback(p, new Date('2026-10-23T10:00:00Z'), 4)).toBe(false);
     expect(shouldAskFeedback(p, new Date('2026-10-23T10:00:00Z'), 5)).toBe(true);
     expect(shouldAskFeedback({ ...p, hideFeedbackPrompt: true }, new Date('2026-11-23T10:00:00Z'), 99)).toBe(false);
+  });
+
+  it('пол: из ответа интервью и из сохранённого профиля', () => {
+    expect(sexFromAnswer('Женский')).toBe('female');
+    expect(sexFromAnswer('Мужской')).toBe('male');
+    expect(sexFromAnswer('')).toBeUndefined();
+    expect(normalizeProfile({ scenario: 'gym', sex: 'female' })?.sex).toBe('female');
+    expect(normalizeProfile({ scenario: 'gym', sex: 'x' })?.sex).toBeUndefined();
   });
 
   it('ссылка на отзыв — только версия и сценарий', () => {

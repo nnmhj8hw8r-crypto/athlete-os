@@ -7,7 +7,8 @@ import { Card, Page, Segmented } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { href } from '../../ui/router.ts';
 import { normalizeLayout } from '../../domain/dashboard.ts';
-import { LEVEL_LABEL, revealFullWidgets, SCENARIO_META, type AppLevel } from '../../domain/profile.ts';
+import { LEVEL_LABEL, revealFullWidgets, SCENARIO_META, SEX_LABEL, type AppLevel, type Sex } from '../../domain/profile.ts';
+import { DEV_MODE_KEY, DevCard, useDevMode } from './DevCard.tsx';
 import { db } from '../../data/db.ts';
 import { setSetting } from '../../data/repo.ts';
 import { perekProvider, type ProviderStatus } from '../nutrition/catalogProvider.ts';
@@ -29,6 +30,17 @@ export function SettingsPage() {
   const { notify } = useFeedback();
   const chartStyle = useChartStyle();
   const profile = useProfile();
+  const devMode = useDevMode();
+  const [taps, setTaps] = useState(0);
+  function tapVersion() {
+    if (devMode) return;
+    const n = taps + 1;
+    setTaps(n);
+    if (n >= 7) {
+      void setSetting(DEV_MODE_KEY, true);
+      notify('Режим разработчика включён');
+    } else if (n >= 4) notify(`До режима разработчика: ${7 - n}`);
+  }
   const [storage, setStorage] = useState<StorageInfo | null>(null);
   const [perek, setPerek] = useState<ProviderStatus | null>(null);
   const [online, setOnline] = useState(navigator.onLine);
@@ -77,12 +89,22 @@ export function SettingsPage() {
           <p className="small">
             Сценарий: <b>{SCENARIO_META[profile.scenario].title}</b> · <a href={href('/welcome')}>пройти приветствие снова</a>
           </p>
+          <div className="field">
+            <span className="label">Фигура на схемах мышц</span>
+            <Segmented<Sex>
+              label="Пол"
+              value={profile.sex ?? 'male'}
+              onChange={(v) => void saveProfile({ ...profile, sex: v })}
+              options={(['male', 'female'] as const).map((v) => ({ value: v, label: SEX_LABEL[v] }))}
+            />
+          </div>
         </Card>
       )}
+      {devMode && <DevCard profile={profile} />}
       <Card title="О приложении">
         <ul className="list small">
           <li>Время и даты — по Москве ({APP_TIME_ZONE})</li>
-          <li>Версия: {APP_VERSION} (демо)</li>
+          <li onClick={tapVersion}>Версия: {APP_VERSION} (демо){devMode && ' · режим разработчика'}</li>
         </ul>
       </Card>
 

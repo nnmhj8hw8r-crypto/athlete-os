@@ -11,7 +11,7 @@ export type Scenario = (typeof SCENARIOS)[number];
 export const SCENARIO_META: Record<Scenario, { title: string; text: string }> = {
   wrestler: { title: 'Борец / единоборства', text: 'Сезон и старты, выход в вес, нагрузка, восстановление' },
   gym: { title: 'Занимаюсь в зале', text: 'Программы и журнал силовых, прогресс, питание под цель' },
-  general: { title: 'Для себя', text: 'Сканер продуктов и КБЖУ, сон и восстановление, тренировки' },
+  general: { title: 'Для себя', text: 'Подсчёт калорий, сон и восстановление, тренировки' },
 };
 
 /** «Простой» скрывает разделы соревнующегося спортсмена, «полный» показывает всё. */
@@ -23,8 +23,13 @@ export const LEVEL_LABEL: Record<AppLevel, string> = { basic: 'Простой', 
 export const FULL_ONLY_WIDGETS: readonly WidgetId[] = ['competition', 'trainingLoad'];
 export const FULL_ONLY_PATHS: readonly string[] = ['/season'];
 
+/** Пол — для мужской или женской фигуры на схемах мышц. Без ответа — мужская. */
+export type Sex = 'male' | 'female';
+export const SEX_LABEL: Record<Sex, string> = { male: 'Мужской', female: 'Женский' };
+
 export interface Profile {
   scenario: Scenario;
+  sex?: Sex;
   level: AppLevel;
   name?: string;
   /** Ответ на вопрос «цель» или «вид борьбы» — текстом выбранного варианта. */
@@ -48,7 +53,7 @@ export function defaultLevel(s: Scenario): AppLevel {
 // ---------- Вопросы интервью ----------
 
 export type Question =
-  | { key: 'goal' | 'sport' | 'trainingsPerWeek'; kind: 'choice'; label: string; options: string[] }
+  | { key: 'goal' | 'sport' | 'trainingsPerWeek' | 'sex'; kind: 'choice'; label: string; options: string[] }
   | { key: 'interests'; kind: 'multi'; label: string; options: string[] }
   | { key: 'weightCategory'; kind: 'text'; label: string; placeholder: string }
   | { key: 'weightKg'; kind: 'weight'; label: string };
@@ -56,20 +61,29 @@ export type Question =
 export const INTERESTS = ['Сканер продуктов и КБЖУ', 'Сон и восстановление', 'Тренировки для себя', 'Вес тела'] as const;
 
 const WEIGHT: Question = { key: 'weightKg', kind: 'weight', label: 'Текущий вес, кг' };
+const SEX: Question = { key: 'sex', kind: 'choice', label: 'Пол (для схемы мышц)', options: [SEX_LABEL.male, SEX_LABEL.female] };
+
+/** Ответ из интервью → пол профиля. */
+export function sexFromAnswer(v: unknown): Sex | undefined {
+  return v === SEX_LABEL.male ? 'male' : v === SEX_LABEL.female ? 'female' : undefined;
+}
 
 export const QUESTIONS: Record<Scenario, Question[]> = {
   wrestler: [
+    SEX,
     { key: 'sport', kind: 'choice', label: 'Вид борьбы', options: ['Дзюдо', 'Самбо', 'Вольная', 'Греко-римская', 'Другое'] },
     { key: 'weightCategory', kind: 'text', label: 'Весовая категория', placeholder: 'например, -73' },
     WEIGHT,
     { key: 'goal', kind: 'choice', label: 'Что сейчас важнее', options: ['Подготовка к старту', 'Выход в вес', 'Набор формы', 'Восстановление'] },
   ],
   gym: [
+    SEX,
     { key: 'goal', kind: 'choice', label: 'Цель', options: ['Набор мышц', 'Сила', 'Снижение жира', 'Поддержание формы'] },
     { key: 'trainingsPerWeek', kind: 'choice', label: 'Тренировок в неделю', options: ['1–2', '3–4', '5 и больше'] },
     WEIGHT,
   ],
   general: [
+    SEX,
     { key: 'interests', kind: 'multi', label: 'Что интересно', options: [...INTERESTS] },
     { key: 'goal', kind: 'choice', label: 'Цель', options: ['Снизить вес', 'Держать форму', 'Набрать массу', 'Просто следить'] },
     WEIGHT,
@@ -130,6 +144,7 @@ export function normalizeProfile(raw: unknown): Profile | null {
     const v = str(r[k], k === 'name' ? 40 : 100);
     if (v) p[k] = v;
   }
+  if (r.sex === 'male' || r.sex === 'female') p.sex = r.sex;
   if (r.hideLevelHint === true) p.hideLevelHint = true;
   if (r.hideFeedbackPrompt === true) p.hideFeedbackPrompt = true;
   if (Array.isArray(r.interests)) {

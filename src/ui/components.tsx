@@ -115,11 +115,28 @@ export function Modal({ title, onClose, children, footer, size = 'default' }: Mo
     // showModal ставит фокус на первую кнопку; поле с data-autofocus (поиск) получает его вместо неё.
     dlg.querySelector<HTMLElement>('[data-autofocus]')?.focus();
     const onCancel = (e: Event) => {
+      // Событие cancel всплывает и от <input type="file">, когда на iPhone закрывают выбор фото без
+      // выбора, — это не просьба закрыть окно. Закрываем только по Esc самого окна.
+      if (e.target !== dlg) return;
       e.preventDefault();
       onCloseRef.current();
     };
     dlg.addEventListener('cancel', onCancel);
     const unregister = registerModal(() => onCloseRef.current());
+
+    // Клавиатура iPhone закрывает низ экрана, а 100dvh этого не учитывает: подгоняем окно под видимую
+    // часть (visualViewport), чтобы поиск и список оставались над клавиатурой.
+    const vv = window.visualViewport;
+    let keyboard = 0;
+    const fit = () => {
+      if (!vv) return;
+      keyboard = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+      dlg.style.setProperty('--kb', `${keyboard}px`);
+      dlg.style.setProperty('--vvh', `${Math.round(vv.height)}px`);
+    };
+    fit();
+    vv?.addEventListener('resize', fit);
+    vv?.addEventListener('scroll', fit);
 
     // Смахивание вниз: за шапку — всегда, за содержимое — только когда оно прокручено к началу.
     let startY = 0;
@@ -132,6 +149,8 @@ export function Modal({ title, onClose, children, footer, size = 'default' }: Mo
       if (!t || e.touches.length > 1) return;
       const target = e.target as HTMLElement;
       if (target.closest('input, textarea, select, .no-swipe')) return;
+      // Пока открыта клавиатура, жест вниз — это прокрутка к полю ввода, а не закрытие окна.
+      if (keyboard > 0 || (dlg.contains(document.activeElement) && document.activeElement?.matches('input, textarea'))) return;
       const inBody = bodyRef.current?.contains(target) ?? false;
       if (inBody && (bodyRef.current?.scrollTop ?? 0) > 0) return;
       startY = t.clientY;
@@ -181,6 +200,8 @@ export function Modal({ title, onClose, children, footer, size = 'default' }: Mo
       dlg.removeEventListener('touchmove', onMove);
       dlg.removeEventListener('touchend', onEnd);
       dlg.removeEventListener('touchcancel', onEnd);
+      vv?.removeEventListener('resize', fit);
+      vv?.removeEventListener('scroll', fit);
       unregister();
       if (dlg.open) dlg.close();
     };

@@ -9,7 +9,7 @@ import type { Food } from '../../domain/schemas.ts';
 import { Field } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { BarcodeScanner, cameraSupport } from './BarcodeScanner.tsx';
-import { barcodeCatalog, perekProvider, PROVIDER_ATTRIBUTION, type FoodCatalogProvider, type ProviderStatus } from './catalogProvider.ts';
+import { barcodeCatalog, perekProvider, type FoodCatalogProvider, type ProviderStatus } from './catalogProvider.ts';
 import type { FoodPrefill } from './FoodFormDialog.tsx';
 
 function useProviderStatus(provider: FoodCatalogProvider): ProviderStatus | null {
@@ -23,17 +23,6 @@ function useProviderStatus(provider: FoodCatalogProvider): ProviderStatus | null
 }
 
 const r1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString('ru-RU');
-
-/** Атрибуция берётся по фактическому источнику продукта: цепочка баз может вернуть любой из них. */
-function Attribution({ food }: { food: CatalogFood }) {
-  const text = PROVIDER_ATTRIBUTION[food.provider];
-  if (!food.url) return <span className="small muted">{text}</span>;
-  return (
-    <a className="small" href={food.url} target="_blank" rel="noopener noreferrer">
-      {text}
-    </a>
-  );
-}
 
 function RemoteFoodConfirm({
   food,
@@ -83,7 +72,6 @@ function RemoteFoodConfirm({
       {food.servings && food.servings.length > 0 && (
         <p className="small muted">Порции у источника: {food.servings.map((s) => `${s.label} — ${r1(s.grams)} г`).join('; ')}</p>
       )}
-      <Attribution food={food} />
       <div className="row">
         <button type="button" className="btn primary" onClick={onConfirm} disabled={busy}>
           Это мой продукт — сохранить
@@ -219,7 +207,7 @@ export function ExternalSearch({ onSelected, onManual, provider = perekProvider,
                 ))}
               </ul>
             )}
-            {response.foods.length > 0 && <p className="small muted">{provider.attribution}. Выберите продукт, чтобы проверить данные.</p>}
+            {response.foods.length > 0 && <p className="small muted">Выберите продукт, чтобы проверить данные.</p>}
           </>
         )
       )}

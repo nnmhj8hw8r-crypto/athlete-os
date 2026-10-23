@@ -1,5 +1,5 @@
 // Карта мышц со статусами в бело-чёрной гамме (без цвета): уровень 0 — без заливки, 1 — светло-серый,
-// 2 — средний серый, 3 — почти чёрный; «болит» — штриховка поверх. Нажатие на группу определяет мышцу
+// 2 — средний серый, 3 — почти чёрный; «болит» — красным поверх. Нажатие на группу определяет мышцу
 // по прозрачности слоя рисунка (canvas), для дорисованных групп — по эллипсу.
 import { useEffect, useRef, type MouseEvent } from 'react';
 import { MUSCLES, type Muscle } from '../../domain/schemas.ts';
@@ -97,16 +97,11 @@ function FigureView({ view, levels, sore, onPick, caption }: { view: View; level
         );
       })}
       <svg viewBox="0 0 200 362" aria-hidden="true">
-        <defs>
-          <pattern id={`hatch-${view}`} width="4" height="4" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="4" stroke="#111" strokeWidth="1.6" />
-          </pattern>
-        </defs>
         {MUSCLES.flatMap((m) =>
           (EXTRA[view][m] ?? []).map((e, i) => (
             <g key={`${m}-${i}`}>
               {(levels[m] ?? 0) > 0 && <ellipse className={`status-ell lvl-${levels[m]}`} cx={e[0]} cy={e[1]} rx={e[2]} ry={e[3]} transform={`rotate(${e[4]} ${e[0]} ${e[1]})`} />}
-              {sore.includes(m) && <ellipse fill={`url(#hatch-${view})`} cx={e[0]} cy={e[1]} rx={e[2]} ry={e[3]} transform={`rotate(${e[4]} ${e[0]} ${e[1]})`} />}
+              {sore.includes(m) && <ellipse className="status-ell-sore" cx={e[0]} cy={e[1]} rx={e[2]} ry={e[3]} transform={`rotate(${e[4]} ${e[0]} ${e[1]})`} />}
             </g>
           )),
         )}

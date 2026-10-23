@@ -269,10 +269,6 @@ export function AddFlow({ mealType, date, start = 'sheet', targetKcal, onClose }
                   {Icons.barcode} Штрихкод
                 </button>
               </div>
-              <p className="small muted">
-                Поиск: ваша история и продукты → встроенная база (продукты USDA и типовые блюда) →
-                {data.offline ? ` офлайн-база российских товаров (${data.offline.products.length.toLocaleString('ru-RU')})` : ' офлайн-база товаров (загружается…)'}.
-              </p>
             </div>
           )}
 
@@ -457,7 +453,7 @@ function RecipesTab({
         </button>
         {showDishes && (
           <>
-            <p className="small muted">Расчёт по типовому рецепту из продуктов USDA — оценка. «Изменить под себя» создаёт ваш рецепт с этими ингредиентами.</p>
+            <p className="small muted">Расчёт по типовому рецепту — оценка. «Изменить под себя» создаёт ваш рецепт с этими ингредиентами.</p>
             <ul className="food-list">
               {DISH_OPTIONS.map((o) => (
                 <li key={o.key} className="food-row">

@@ -11,7 +11,7 @@ import { getZonedParts } from '../../domain/time.ts';
 import { Field, FormError, Modal } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { MacroGrid } from './MacroGrid.tsx';
-import { NutrientDetails, SourceLink } from './NutrientDetails.tsx';
+import { NutrientDetails } from './NutrientDetails.tsx';
 
 const r1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString('ru-RU');
 
@@ -105,7 +105,6 @@ export function MealEntryDialog({ entry, food: picked, mealType, date, onClose, 
               На 100 {unit}: {Math.round(food.per100.kcal)} ккал, Б {r1(food.per100.protein)}, Ж {r1(food.per100.fat)}, У {r1(food.per100.carbs)}
             </p>
           )}
-          <SourceLink url={food.sourceUrl} refId={food.refId} />
           {entry && <p className="small muted">Пищевая ценность взята из записи и не меняется при правке продукта в каталоге.</p>}
         </div>
         {!quick && (

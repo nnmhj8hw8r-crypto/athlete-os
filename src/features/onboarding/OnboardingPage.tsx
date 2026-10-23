@@ -6,7 +6,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { db } from '../../data/db.ts';
 import { countAll, saveEntity, setSetting } from '../../data/repo.ts';
 import { parseDecimal } from '../../domain/form.ts';
-import { defaultLevel, emptyLayout, PROFILE_KEY, QUESTIONS, SCENARIO_META, SCENARIOS, type Profile, type Question, type Scenario } from '../../domain/profile.ts';
+import { defaultLevel, emptyLayout, PROFILE_KEY, sexFromAnswer, QUESTIONS, SCENARIO_META, SCENARIOS, type Profile, type Question, type Scenario } from '../../domain/profile.ts';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
 import { navigate } from '../../ui/router.ts';
@@ -66,6 +66,7 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
       ...(prev?.hideLevelHint && { hideLevelHint: true }),
       ...(prev?.hideFeedbackPrompt && { hideFeedbackPrompt: true }),
       ...(name.trim() && { name: name.trim().slice(0, 40) }),
+      ...((sexFromAnswer(answers.sex) ?? prev?.sex) && { sex: sexFromAnswer(answers.sex) ?? prev?.sex }),
       ...(text('goal') && { goal: text('goal') }),
       ...(text('sport') && { sport: text('sport') }),
       ...(text('weightCategory') && { weightCategory: text('weightCategory') }),
@@ -110,9 +111,8 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
             <h1>Personal Athlete OS</h1>
             <p className="onb-lead">Личный дневник спортсмена: питание, тренировки, сон и восстановление, сезон — в одном приложении.</p>
             <ul className="onb-points">
-              <li>Работает в браузере и офлайн, ставится на экран «Домой».</li>
-              <li>Все записи хранятся только на этом устройстве — у каждого своё приложение по той же ссылке.</li>
-              <li>Без рекламы, регистрации и платных функций.</li>
+              <li>Ставится на экран «Домой» и работает даже без интернета.</li>
+              <li>Открыл — и сразу пользуешься: всё нужное спортсмену в одном месте.</li>
             </ul>
           </>
         )}
