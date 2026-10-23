@@ -1,48 +1,86 @@
+// «Ещё» (v0.9.2): пункты сгруппированы по смыслу, описания — простыми словами, без технических терминов.
+import type { ReactNode } from 'react';
 import { Page } from '../../ui/components.tsx';
-import { href } from '../../ui/router.ts';
 import { useFeedback } from '../../ui/feedback.tsx';
+import { Icons } from '../../ui/icons.tsx';
+import { href } from '../../ui/router.ts';
 import { SHARE_MESSAGE, shareApp } from '../../ui/share.ts';
 import { useFeedbackUrl } from '../onboarding/useProfile.ts';
 
-const ITEMS = [
-  { path: '/more/supplements', title: 'Добавки', text: 'Журнал приёма спортивных добавок' },
-  { path: '/more/sources', title: 'Библиотека источников', text: 'Статьи, исследования и рекомендации с заметками' },
-  { path: '/more/ai', title: 'Сводка для ИИ', text: 'Подготовить текст для Claude или ChatGPT и скопировать вручную' },
-  { path: '/more/backup', title: 'Резервная копия', text: 'Экспорт и импорт всех данных в JSON' },
-  { path: '/more/settings', title: 'Настройки и о приложении', text: 'Параметры, хранилище, состояние сервера' },
-  { path: '/nutrition/foods', title: 'Продукты и рецепты', text: 'Свой каталог продуктов' },
-  { path: '/welcome', title: 'Показать приветствие снова', text: 'Знакомство с разделами и смена сценария: борец, зал или для себя' },
-];
+interface Item {
+  icon: ReactNode;
+  title: string;
+  text: string;
+  path?: string;
+  url?: string;
+  onClick?: () => void;
+}
 
 export function MorePage() {
   const feedback = useFeedbackUrl();
   const { notify } = useFeedback();
   const share = () => void shareApp().then((r) => SHARE_MESSAGE[r] && notify(SHARE_MESSAGE[r]!, r === 'failed' ? 'error' : 'info'));
+
+  const groups: { title: string; items: Item[] }[] = [
+    {
+      title: 'Мои данные',
+      items: [
+        { icon: Icons.history, title: 'Резервная копия', text: 'Сохранить все записи в файл и восстановить их — на этом или новом телефоне', path: '/more/backup' },
+        { icon: Icons.food, title: 'Продукты и рецепты', text: 'Ваши продукты и блюда — добавляются в дневник питания в одно касание', path: '/nutrition/foods' },
+      ],
+    },
+    {
+      title: 'Инструменты',
+      items: [
+        { icon: Icons.copy, title: 'Сводка для ИИ', text: 'Готовый текст о питании, сне и тренировках — вставьте в ChatGPT или Claude и задайте вопрос', path: '/more/ai' },
+        { icon: Icons.drop, title: 'Добавки', text: 'Отмечайте, что и когда принимаете — для себя и для разговора с врачом', path: '/more/supplements' },
+        { icon: Icons.book, title: 'Библиотека', text: 'Статьи и заметки, которые вы сохранили', path: '/more/sources' },
+      ],
+    },
+    {
+      title: 'Приложение',
+      items: [
+        { icon: Icons.edit, title: 'Настройки', text: 'Простой или полный режим, вид графиков, хранение данных', path: '/more/settings' },
+        { icon: Icons.arrowUp, title: 'Поделиться с друзьями', text: 'Отправить ссылку — у каждого своё приложение, ваши записи не передаются', onClick: share },
+        { icon: Icons.pen, title: 'Оставить отзыв', text: 'Что понравилось и чего не хватает — 2–3 минуты во внешней форме', url: feedback },
+        { icon: Icons.home, title: 'Знакомство с приложением', text: 'Показать приветствие снова и поменять сценарий: борец, зал или для себя', path: '/welcome' },
+      ],
+    },
+  ];
+
   return (
     <Page title="Ещё">
-      <a className="hero-card link" href={feedback} target="_blank" rel="noreferrer">
-        <span className="hero-label">Демо-версия</span>
-        <span className="hero-title">Оставить отзыв</span>
-        <span className="muted small">Что понравилось, что неудобно, чего не хватает — 2–3 минуты. Форма внешняя (Tally), ваши записи в неё не попадают.</span>
-      </a>
-      <button type="button" className="hero-card link share-card" onClick={share}>
-        <span className="hero-title">Поделиться приложением с друзьями</span>
-        <span className="muted small">Отправить ссылку. У каждого по ней своё приложение — ваши записи не передаются.</span>
-      </button>
-      <ul className="list">
-        {ITEMS.map((i) => (
-          <li key={i.path}>
-            <a className="list-item selectable" href={href(i.path)} style={{ textDecoration: 'none' }}>
-              <span className="grow">
-                <span className="title">{i.title}</span>
-                <span className="meta" style={{ display: 'block' }}>
-                  {i.text}
-                </span>
-              </span>
-            </a>
-          </li>
-        ))}
-      </ul>
+      {groups.map((g) => (
+        <section key={g.title} className="more-group">
+          <h2 className="more-group-title">{g.title}</h2>
+          <ul className="more-list">
+            {g.items.map((i) => {
+              const body = (
+                <>
+                  <span className="more-icon">{i.icon}</span>
+                  <span className="grow">
+                    <span className="title">{i.title}</span>
+                    <span className="meta">{i.text}</span>
+                  </span>
+                </>
+              );
+              return (
+                <li key={i.title}>
+                  {i.onClick ? (
+                    <button type="button" className="more-item" onClick={i.onClick}>
+                      {body}
+                    </button>
+                  ) : (
+                    <a className="more-item" href={i.url ?? href(i.path!)} {...(i.url && { target: '_blank', rel: 'noreferrer' })}>
+                      {body}
+                    </a>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
     </Page>
   );
 }

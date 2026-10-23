@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { APP_VERSION } from '../../appVersion.ts';
-import { APP_TIME_ZONE, DEFAULT_WEIGHT_CATEGORY } from '../../config.ts';
+import { APP_TIME_ZONE } from '../../config.ts';
 import type { ChartLineStyle } from '../../domain/chartPath.ts';
 import { setChartStyle, useChartStyle } from '../../ui/chartStyle.ts';
 import { Card, Page, Segmented } from '../../ui/components.tsx';
@@ -79,16 +79,14 @@ export function SettingsPage() {
           </p>
         </Card>
       )}
-      <Card title="Параметры">
+      <Card title="О приложении">
         <ul className="list small">
-          <li>Часовой пояс дат и времени: {APP_TIME_ZONE}</li>
-          <li>Категория по умолчанию — дзюдо: {DEFAULT_WEIGHT_CATEGORY.judo} кг, самбо: {DEFAULT_WEIGHT_CATEGORY.sambo} кг</li>
-          <li>Версия приложения: {APP_VERSION}</li>
+          <li>Время и даты — по Москве ({APP_TIME_ZONE})</li>
+          <li>Версия: {APP_VERSION} (демо)</li>
         </ul>
-        <p className="small muted">Параметры задаются в файле src/config.ts.</p>
       </Card>
 
-      <Card title="Хранилище">
+      <Card title="Хранение данных">
         {storage === null ? (
           <p className="muted">Проверка…</p>
         ) : !storage.supported ? (
@@ -96,7 +94,7 @@ export function SettingsPage() {
         ) : (
           <>
             <p>
-              Постоянное хранение: <b>{storage.persisted ? 'включено' : 'не подтверждено'}</b>
+              Защита от автоудаления: <b>{storage.persisted ? 'включена' : 'не включена'}</b>
               {storage.usageMb !== undefined && <span className="muted"> · занято ≈ {storage.usageMb.toFixed(1)} МБ</span>}
             </p>
             {!storage.persisted && (
@@ -112,13 +110,19 @@ export function SettingsPage() {
         </p>
       </Card>
 
-      <Card title="Сеть и внешние сервисы">
-        <p>Интернет: {online ? 'есть' : 'нет — дневники работают офлайн'}</p>
+      <Card title="Интернет">
+        <p>{online ? 'Подключение есть' : 'Подключения нет — дневники работают и без интернета'}</p>
         <p>
-          Поиск Perek.us:{' '}
-          {perek === null ? 'проверка…' : perek.available ? <b>подключён</b> : <span className="muted">{perek.message}</span>}
+          Поиск продуктов по названию:{' '}
+          {perek === null ? (
+            'проверка…'
+          ) : perek.available ? (
+            <b>есть</b>
+          ) : (
+            <span className="muted">пока недоступен — ищите по штрихкоду или добавьте свой продукт</span>
+          )}
         </p>
-        <p className="small muted">Платные API ИИ не используются. Сводку для ИИ вы копируете вручную.</p>
+        <p className="small muted">Штрихкоды ищутся в открытой базе Open Food Facts. Ваши записи никуда не отправляются.</p>
       </Card>
 
       <Card title="Вид">

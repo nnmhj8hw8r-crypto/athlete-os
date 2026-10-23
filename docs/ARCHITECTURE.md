@@ -215,6 +215,8 @@ Perek.us (если сервер с ключом доступен) → Open Food 
   `useProfile.ts` (`useProfile`, `useLevel`, `saveProfile`, `useFeedbackUrl`); `App.tsx` показывает
   приветствие вместо приложения и скрывает пути `FULL_ONLY_PATHS` в простом режиме.
 - Карточка сна — `src/features/recovery/SleepHero.tsx` (общая для «Восстановления» и главной).
+- Заставка — `src/ui/Splash.tsx` (монтируется рядом с `App` в `main.tsx`), стили в конце `styles.css`;
+  «Поделиться» — `src/ui/share.ts`; пояснения виджетов — `WIDGET_HINT` в `src/domain/dashboard.ts`.
 
 ### Интерфейс v0.7
 

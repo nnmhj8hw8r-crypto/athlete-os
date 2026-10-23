@@ -53,9 +53,9 @@ export function BackupPage() {
     if (!parsed?.ok) return;
     const current = await countAll();
     const ok = await confirm({
-      title: mode === 'replace' ? 'Заменить все данные?' : 'Импортировать копию?',
+      title: mode === 'replace' ? 'Заменить все записи?' : 'Восстановить из копии?',
       danger: mode === 'replace',
-      confirmLabel: mode === 'replace' ? 'Заменить' : 'Импортировать',
+      confirmLabel: mode === 'replace' ? 'Заменить' : 'Восстановить',
       message: (
         <div className="stack">
           <p>
@@ -63,11 +63,11 @@ export function BackupPage() {
           </p>
           {mode === 'replace' ? (
             <p className="notice error">
-              Все текущие данные на этом устройстве (записей — {current}) будут удалены и заменены содержимым файла. Сначала
-              рекомендуется сохранить свежую копию.
+              Все текущие записи на этом телефоне ({current}) будут удалены и заменены записями из копии. Сначала лучше сохранить
+              свежую копию.
             </p>
           ) : (
-            <p>Записи из файла будут добавлены. Записи с теми же идентификаторами будут перезаписаны версией из файла.</p>
+            <p>Записи из копии добавятся к текущим. Если запись есть и там и там, останется версия из копии.</p>
           )}
         </div>
       ),
@@ -76,10 +76,10 @@ export function BackupPage() {
     setImporting(true);
     try {
       await importBackup(parsed.backup, mode);
-      notify('Импорт завершён');
+      notify('Записи восстановлены');
       setParsed(null);
     } catch (e) {
-      notify(`Импорт не выполнен, данные не изменены: ${(e as Error).message}`, 'error');
+      notify(`Не получилось восстановить, текущие записи не изменены: ${(e as Error).message}`, 'error');
     } finally {
       setImporting(false);
     }
@@ -88,25 +88,22 @@ export function BackupPage() {
   return (
     <Page title="Резервная копия" subtitle={<a href={href('/more')}>← Ещё</a>}>
       <p className="notice warn">
-        Данные хранятся только в этом браузере на этом устройстве. Кэш приложения — не резервная копия: при очистке данных
-        браузера, удалении приложения или нехватке места записи могут пропасть. Регулярно сохраняйте копию в файл и
-        храните её вне браузера. Синхронизации между устройствами пока нет.
+        Все записи хранятся только на этом телефоне. Если удалить приложение или очистить данные Safari, они пропадут.
+        Раз в неделю-две сохраняйте копию — например, в «Файлы» или iCloud Drive.
       </p>
 
-      <Card title="Экспорт">
-        <p className="small muted">Все разделы в одном JSON-файле. Файл содержит личные данные о здоровье — не публикуйте его.</p>
-        <p className="small muted">
-          Фото прогресса и обложки программ в копию не входят (слишком большой файл) — их оригиналы храните в галерее телефона.
-        </p>
+      <Card title="Сохранить копию">
+        <p className="small muted">Все ваши записи — одним файлом. В нём личные данные, не отправляйте его посторонним.</p>
+        <p className="small muted">Фото прогресса в копию не входят — они остаются в галерее телефона.</p>
         <button type="button" className="btn primary" onClick={doExport} disabled={exporting}>
           {exporting ? 'Подготовка…' : 'Скачать резервную копию'}
         </button>
       </Card>
 
-      <Card title="Импорт">
-        <p className="small muted">Файл проверяется целиком. Если в нём есть ошибка, ничего не импортируется.</p>
+      <Card title="Восстановить из копии">
+        <p className="small muted">Выберите файл копии. Если он повреждён, ничего не изменится.</p>
         <label className="btn" style={{ alignSelf: 'flex-start' }}>
-          Выбрать файл…
+          Выбрать файл копии…
           <input type="file" accept="application/json,.json" onChange={onFile} className="visually-hidden" />
         </label>
 
@@ -126,8 +123,7 @@ export function BackupPage() {
         {parsed?.ok && (
           <div className="stack">
             <p className="notice ok">
-              Файл «{parsed.fileName}» прошёл проверку. Создан {formatDateTime(parsed.backup.exportedAt)}, версия приложения{' '}
-              {parsed.backup.appVersion}.
+              Копия «{parsed.fileName}» в порядке, сохранена {formatDateTime(parsed.backup.exportedAt)}.
             </p>
             <table className="set-table">
               <tbody>
@@ -141,18 +137,18 @@ export function BackupPage() {
             </table>
             <fieldset className="stack" style={{ border: 0, padding: 0, margin: 0 }}>
               <legend className="label" style={{ fontWeight: 600 }}>
-                Режим импорта
+                Как восстановить
               </legend>
               <label className="row">
-                <input type="radio" name="mode" checked={mode === 'merge'} onChange={() => setMode('merge')} /> Объединить с текущими данными
+                <input type="radio" name="mode" checked={mode === 'merge'} onChange={() => setMode('merge')} /> Добавить к текущим записям
               </label>
               <label className="row">
-                <input type="radio" name="mode" checked={mode === 'replace'} onChange={() => setMode('replace')} /> Заменить все текущие данные
+                <input type="radio" name="mode" checked={mode === 'replace'} onChange={() => setMode('replace')} /> Заменить всё, что сейчас в приложении
               </label>
             </fieldset>
             <div className="row">
               <button type="button" className={mode === 'replace' ? 'btn danger' : 'btn primary'} onClick={doImport} disabled={importing}>
-                {importing ? 'Импорт…' : 'Импортировать'}
+                {importing ? 'Восстановление…' : 'Восстановить'}
               </button>
               <button type="button" className="btn ghost" onClick={() => setParsed(null)}>
                 Отмена

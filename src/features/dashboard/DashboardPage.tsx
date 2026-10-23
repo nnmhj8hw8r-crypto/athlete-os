@@ -7,7 +7,17 @@ import { useState } from 'react';
 import { db } from '../../data/db.ts';
 import { setSetting } from '../../data/repo.ts';
 import type { ChartLineStyle } from '../../domain/chartPath.ts';
-import { DEFAULT_LAYOUT, normalizeLayout, swapWidgets, updateWidget, WIDGET_LABEL, WIDGET_PERIODS, type WidgetConfig, type WidgetId } from '../../domain/dashboard.ts';
+import {
+  DEFAULT_LAYOUT,
+  normalizeLayout,
+  swapWidgets,
+  updateWidget,
+  WIDGET_HINT,
+  WIDGET_LABEL,
+  WIDGET_PERIODS,
+  type WidgetConfig,
+  type WidgetId,
+} from '../../domain/dashboard.ts';
 import { FULL_ONLY_WIDGETS, recommendedWidgets, revealFullWidgets, shouldAskFeedback, type Profile } from '../../domain/profile.ts';
 import { countAll } from '../../data/repo.ts';
 import { SHARE_MESSAGE, shareApp } from '../../ui/share.ts';
@@ -62,8 +72,8 @@ export function DashboardPage() {
       {basic && profile && !profile.hideLevelHint && layout && (
         <div className="notice info level-hint">
           <span>
-            Включён <b>простой режим</b>. Хотите посмотреть всё, что приложение умеет для спортсменов: сезон, старты, нагрузку по
-            неделям? Режим можно сменить в любой момент в «Ещё» → «Настройки».
+            Включён <b>простой режим</b>. Хотите посмотреть всё, что приложение умеет для спортсменов: сезон, старты, нагрузку по неделям? Режим можно сменить в
+            любой момент в «Ещё» → «Настройки».
           </span>
           <div className="row">
             <button
@@ -91,7 +101,7 @@ export function DashboardPage() {
           <b className="readiness-title">Соберите свою сводку</b>
           <span className="muted">Выберите карточки, которые хотите видеть каждый день: сон, готовность, питание, вес и другие.</span>
           <button type="button" className="btn primary big" onClick={() => setEditing(true)}>
-            {Icons.plus} Добавить виджеты
+            {Icons.plus} {profile ? 'Рекомендации для вас' : 'Добавить виджеты'}
           </button>
         </section>
       ) : (
@@ -144,14 +154,18 @@ function FeedbackPrompt({ profile }: { profile: Profile }) {
       <span className="hero-label">Демо-версия</span>
       <b className="readiness-title">Как вам приложение?</b>
       <span className="muted">
-        Расскажите, что понравилось и чего не хватает, — это 2–3 минуты (внешняя форма Tally, ваши записи в неё не попадают). И поделитесь
-        приложением с друзьями, если оно вам пригодилось.
+        Расскажите, что понравилось и чего не хватает, — это 2–3 минуты (внешняя форма Tally, ваши записи в неё не попадают). И поделитесь приложением с
+        друзьями, если оно вам пригодилось.
       </span>
       <div className="row">
         <a className="btn primary" href={url} target="_blank" rel="noreferrer">
           Оставить отзыв
         </a>
-        <button type="button" className="btn" onClick={() => void shareApp().then((r) => SHARE_MESSAGE[r] && notify(SHARE_MESSAGE[r]!, r === 'failed' ? 'error' : 'info'))}>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => void shareApp().then((r) => SHARE_MESSAGE[r] && notify(SHARE_MESSAGE[r]!, r === 'failed' ? 'error' : 'info'))}
+        >
           Поделиться
         </button>
         <button type="button" className="btn ghost" onClick={() => void saveProfile({ ...profile, hideFeedbackPrompt: true })}>
@@ -210,7 +224,14 @@ function NutritionWidget() {
   const today = todayKey();
   const meals = useLiveQuery(() => db.meals.where('date').equals(today).toArray(), [today]);
   return (
-    <Card title="Питание сегодня" aside={<a className="small" href={href('/nutrition')}>Дневник</a>}>
+    <Card
+      title="Питание сегодня"
+      aside={
+        <a className="small" href={href('/nutrition')}>
+          Дневник
+        </a>
+      }
+    >
       {meals === undefined ? null : meals.length ? (
         <>
           <MacroGrid n={sumNutrients(meals.map((m) => m.nutrients))} />
@@ -226,7 +247,14 @@ function NutritionWidget() {
 function TrainingsWidget() {
   const workouts = useLiveQuery(() => db.workouts.orderBy('startAt').reverse().limit(3).toArray(), []);
   return (
-    <Card title="Последние тренировки" aside={<a className="small" href={href('/training?tab=journal')}>Журнал</a>}>
+    <Card
+      title="Последние тренировки"
+      aside={
+        <a className="small" href={href('/training?tab=journal')}>
+          Журнал
+        </a>
+      }
+    >
       {workouts === undefined ? null : workouts.length ? (
         <ul className="list">
           {workouts.map((w) => (
@@ -267,15 +295,19 @@ function CustomizeDialog({
     save(next);
   };
   const chartStyle = useChartStyle();
+  // Новому пользователю (главная пуста) сначала показываем только рекомендации, полный список — по кнопке.
+  const [showList, setShowList] = useState(() => shown.some((w) => w.visible) || toAdd.length === 0);
   return (
     <Modal
-      title="Настроить главную"
+      title={toAdd.length && !shown.some((w) => w.visible) ? 'Рекомендации для вас' : 'Настроить главную'}
       onClose={onClose}
       footer={
         <>
-          <button type="button" className="btn ghost" onClick={() => save(DEFAULT_LAYOUT.map((w) => ({ ...w })))}>
-            Сбросить
-          </button>
+          {showList && (
+            <button type="button" className="btn ghost" onClick={() => save(DEFAULT_LAYOUT.map((w) => ({ ...w })))}>
+              Сбросить
+            </button>
+          )}
           <button type="button" className="btn primary" onClick={onClose}>
             Готово
           </button>
@@ -285,61 +317,98 @@ function CustomizeDialog({
       {toAdd.length > 0 && (
         <div className="recommended">
           <div className="row-between">
-            <b>Рекомендуем для вас</b>
+            {/* В режиме «только рекомендации» заголовок окна уже говорит то же самое. */}
+            {showList ? <b>Рекомендуем для вас</b> : <span />}
             <button type="button" className="btn small primary" onClick={() => showAll(toAdd)}>
               Добавить все
             </button>
           </div>
-          <div className="chips">
+          <p className="small muted">Подобраны по ответам в приветствии. Лишнее потом легко убрать.</p>
+          <ul className="rec-list">
             {toAdd.map((id) => (
-              <button key={id} type="button" className="chip" onClick={() => showAll([id])}>
-                + {WIDGET_LABEL[id]}
-              </button>
+              <li key={id}>
+                <span className="grow">
+                  <b>{WIDGET_LABEL[id]}</b>
+                  <span className="small muted">{WIDGET_HINT[id]}</span>
+                </span>
+                <button type="button" className="btn small" aria-label={`Добавить: ${WIDGET_LABEL[id]}`} onClick={() => showAll([id])}>
+                  {Icons.plus}
+                </button>
+              </li>
             ))}
-          </div>
-          <p className="small muted">Подобраны по ответам в приветствии.</p>
+          </ul>
         </div>
       )}
-      <p className="small muted">Включайте и выключайте виджеты, меняйте порядок стрелками и выбирайте период графиков.</p>
-      <ul className="widget-list">
-        {shown.map((w, i) => {
-          const periods = WIDGET_PERIODS[w.id];
-          return (
-            <li key={w.id} className={`widget-row${w.visible ? '' : ' off'}`}>
-              <label className="switch">
-                <input type="checkbox" checked={w.visible} onChange={(e) => save(updateWidget(layout, w.id, { visible: e.target.checked }))} />
-                <span className="switch-track" aria-hidden="true" />
-                <span className="widget-name">{WIDGET_LABEL[w.id]}</span>
-              </label>
-              <div className="widget-move">
-                <button type="button" className="icon-btn" disabled={i === 0} aria-label={`Выше: ${WIDGET_LABEL[w.id]}`} onClick={() => save(swapWidgets(layout, w.id, shown[i - 1]!.id))}>
-                  {Icons.arrowUp}
-                </button>
-                <button type="button" className="icon-btn" disabled={i === shown.length - 1} aria-label={`Ниже: ${WIDGET_LABEL[w.id]}`} onClick={() => save(swapWidgets(layout, w.id, shown[i + 1]!.id))}>
-                  {Icons.arrowDown}
-                </button>
-              </div>
-              {periods && w.visible && (
-                <div className="widget-period">
-                  <Segmented label={`Период: ${WIDGET_LABEL[w.id]}`} value={w.period ?? periods[0]!.value} onChange={(p) => save(updateWidget(layout, w.id, { period: p }))} options={periods} />
-                </div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-      <div className="field">
-        <span className="label">Линии графиков</span>
-        <Segmented<ChartLineStyle>
-          label="Линии графиков"
-          value={chartStyle}
-          onChange={(s) => void setChartStyle(s)}
-          options={[
-            { value: 'smooth', label: 'Плавные' },
-            { value: 'straight', label: 'Прямые' },
-          ]}
-        />
-      </div>
+      {!showList ? (
+        <button type="button" className="btn ghost" onClick={() => setShowList(true)}>
+          Все виджеты ({shown.length})
+        </button>
+      ) : (
+        <>
+          <p className="small muted">Включайте и выключайте виджеты, меняйте порядок стрелками и выбирайте период графиков.</p>
+          <ul className="widget-list">
+            {shown.map((w, i) => {
+              const periods = WIDGET_PERIODS[w.id];
+              return (
+                <li key={w.id} className={`widget-row${w.visible ? '' : ' off'}`}>
+                  <label className="switch">
+                    <input type="checkbox" checked={w.visible} onChange={(e) => save(updateWidget(layout, w.id, { visible: e.target.checked }))} />
+                    <span className="switch-track" aria-hidden="true" />
+                    <span className="widget-text">
+                      <span className="widget-name">{WIDGET_LABEL[w.id]}</span>
+                      <span className="small muted">{WIDGET_HINT[w.id]}</span>
+                    </span>
+                  </label>
+                  <div className="widget-move">
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      disabled={i === 0}
+                      aria-label={`Выше: ${WIDGET_LABEL[w.id]}`}
+                      onClick={() => save(swapWidgets(layout, w.id, shown[i - 1]!.id))}
+                    >
+                      {Icons.arrowUp}
+                    </button>
+                    <button
+                      type="button"
+                      className="icon-btn"
+                      disabled={i === shown.length - 1}
+                      aria-label={`Ниже: ${WIDGET_LABEL[w.id]}`}
+                      onClick={() => save(swapWidgets(layout, w.id, shown[i + 1]!.id))}
+                    >
+                      {Icons.arrowDown}
+                    </button>
+                  </div>
+                  {periods && w.visible && (
+                    <div className="widget-period">
+                      <Segmented
+                        label={`Период: ${WIDGET_LABEL[w.id]}`}
+                        value={w.period ?? periods[0]!.value}
+                        onChange={(p) => save(updateWidget(layout, w.id, { period: p }))}
+                        options={periods}
+                      />
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+      {showList && (
+        <div className="field">
+          <span className="label">Линии графиков</span>
+          <Segmented<ChartLineStyle>
+            label="Линии графиков"
+            value={chartStyle}
+            onChange={(s) => void setChartStyle(s)}
+            options={[
+              { value: 'smooth', label: 'Плавные' },
+              { value: 'straight', label: 'Прямые' },
+            ]}
+          />
+        </div>
+      )}
     </Modal>
   );
 }

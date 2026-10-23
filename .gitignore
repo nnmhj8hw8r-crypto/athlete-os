@@ -21,3 +21,6 @@ Thumbs.db
 *.log
 .vscode/
 .idea/
+
+# Образцы (видео, скриншоты) для разбора — не в Git
+inspiration/
