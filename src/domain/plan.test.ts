@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bmrMifflin, computePlan, daysBetween, nutritionPlanSchema, waterTargetFor, type NutritionPlan } from './plan.ts';
+import { bmrMifflin, computePlan, daysBetween, estimateActualBurn, nutritionPlanSchema, waterTargetFor, type NutritionPlan } from './plan.ts';
 
 const base: NutritionPlan = nutritionPlanSchema.parse({
   sex: 'male',
@@ -56,5 +56,29 @@ describe('личный план', () => {
 
   it('дни между датами', () => {
     expect(daysBetween('2026-10-22', '2026-10-29')).toBe(7);
+  });
+});
+
+describe('фактический расход по записям', () => {
+  const day = (i: number) => `2026-10-${String(i).padStart(2, '0')}`;
+  it('мало данных — нет оценки', () => {
+    const intake = new Map([[day(20), 2000]]);
+    expect(estimateActualBurn(intake, [{ date: day(20), kg: 80 }], day(21), null)).toBeNull();
+  });
+
+  it('ел 2200 ккал, масса падала 0,5 кг/нед → расход ≈ 2750 ккал', () => {
+    const intake = new Map(Array.from({ length: 21 }, (_, i) => [day(i + 1), 2200] as const));
+    const weights = [1, 8, 15, 21].map((d) => ({ date: day(d), kg: 80 - ((d - 1) * 0.5) / 7 }));
+    const r = estimateActualBurn(intake, weights, day(21), -0.5)!;
+    expect(r.weeklyTrendKg).toBeCloseTo(-0.5, 2);
+    expect(r.tdee).toBe(2750);
+    expect(r.suggestedKcal).toBe(2200);
+    expect(r.loggedDays).toBe(21);
+  });
+
+  it('дни без записей не считаются', () => {
+    const intake = new Map(Array.from({ length: 21 }, (_, i) => [day(i + 1), i % 3 === 0 ? 0 : 2000] as const));
+    const weights = [1, 8, 15, 21].map((d) => ({ date: day(d), kg: 75 }));
+    expect(estimateActualBurn(intake, weights, day(21), 0)!.loggedDays).toBe(14);
   });
 });

@@ -166,3 +166,57 @@ export const PLAN_SOURCES = [
   'Garthe I и др. Effect of two different weight-loss rates on body composition and strength and power-related performance in elite athletes. Int J Sport Nutr Exerc Metab. 2011;21(2):97–104 (≈0,7%/нед против ≈1,4%/нед).',
   'EFSA Panel on Dietetic Products, Nutrition and Allergies. Scientific Opinion on Dietary reference values for water. EFSA Journal. 2010;8(3):1459 (2,5 л/сут мужчинам, 2,0 л/сут женщинам — общая вода).',
 ];
+
+// ---------- Фактический расход по вашим данным (v0.9.5) ----------
+
+/** Окно оценки и минимум данных: короче — шум воды и соли в весе сильнее реального тренда. */
+export const ADAPTIVE_WINDOW_DAYS = 21;
+export const ADAPTIVE_MIN_LOGGED_DAYS = 14;
+export const ADAPTIVE_MIN_WEIGHTS = 4;
+export const ADAPTIVE_MIN_SPAN_DAYS = 14;
+
+export interface ActualBurn {
+  loggedDays: number;
+  avgIntakeKcal: number;
+  /** Тренд массы по прямой (наименьшие квадраты), кг/нед. */
+  weeklyTrendKg: number;
+  /** Фактический расход: средний рацион минус энергия изменения массы. */
+  tdee: number;
+  /** Сколько есть, чтобы идти с нужным темпом (null — нет цели или темпа). */
+  suggestedKcal: number | null;
+}
+
+/**
+ * Оценка реального расхода по записям: если ел в среднем X ккал и масса менялась на Δ кг/нед,
+ * расход ≈ X − Δ × 7700 / 7. Работает, только если питание записано почти полностью — иначе расход занижен.
+ * Возвращает null, пока данных мало (меньше 14 дней питания или 4 взвешиваний за 14+ дней).
+ */
+export function estimateActualBurn(
+  intakeByDay: ReadonlyMap<string, number>,
+  weights: readonly { date: string; kg: number }[],
+  todayKey: string,
+  targetWeeklyKg: number | null,
+): ActualBurn | null {
+  const from = Date.parse(`${todayKey}T00:00:00Z`) - (ADAPTIVE_WINDOW_DAYS - 1) * 86_400_000;
+  const inWindow = (d: string) => {
+    const t = Date.parse(`${d}T00:00:00Z`);
+    return t >= from && d <= todayKey;
+  };
+  const days = [...intakeByDay].filter(([d, k]) => inWindow(d) && k > 0);
+  const pts = weights.filter((w) => inWindow(w.date)).map((w) => ({ x: (Date.parse(`${w.date}T00:00:00Z`) - from) / 86_400_000, y: w.kg }));
+  if (days.length < ADAPTIVE_MIN_LOGGED_DAYS || pts.length < ADAPTIVE_MIN_WEIGHTS) return null;
+  const span = Math.max(...pts.map((p) => p.x)) - Math.min(...pts.map((p) => p.x));
+  if (span < ADAPTIVE_MIN_SPAN_DAYS) return null;
+  const mx = pts.reduce((s, p) => s + p.x, 0) / pts.length;
+  const my = pts.reduce((s, p) => s + p.y, 0) / pts.length;
+  const slopePerDay = pts.reduce((s, p) => s + (p.x - mx) * (p.y - my), 0) / pts.reduce((s, p) => s + (p.x - mx) ** 2, 0);
+  const avgIntakeKcal = days.reduce((s, [, k]) => s + k, 0) / days.length;
+  const tdee = avgIntakeKcal - slopePerDay * KCAL_PER_KG;
+  return {
+    loggedDays: days.length,
+    avgIntakeKcal: Math.round(avgIntakeKcal),
+    weeklyTrendKg: Math.round(slopePerDay * 7 * 100) / 100,
+    tdee: Math.round(tdee),
+    suggestedKcal: targetWeeklyKg === null ? null : Math.round(tdee + (targetWeeklyKg * KCAL_PER_KG) / 7),
+  };
+}

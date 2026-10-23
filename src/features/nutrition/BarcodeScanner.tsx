@@ -2,7 +2,7 @@
 // Камера в браузере доступна только на HTTPS или localhost; иначе остаётся ручной ввод.
 // Вид (v0.9.4) — по образцу FatSecret: полный экран, красная линия-прицел, «Клавиатура» для ввода вручную.
 import { useEffect, useRef, useState } from 'react';
-import { parseEan } from '../../../shared/ean.ts';
+import { parseScannedCode } from '../../../shared/ean.ts';
 import { Icons } from '../../ui/icons.tsx';
 
 export function cameraSupport(): { ok: true } | { ok: false; message: string } {
@@ -28,6 +28,7 @@ export function BarcodeScanner({ onDetected, onCancel }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(true);
+  const [notice, setNotice] = useState<string | null>(null);
   const detectedRef = useRef(onDetected);
   detectedRef.current = onDetected;
   const cancelRef = useRef(onCancel);
@@ -44,7 +45,13 @@ export function BarcodeScanner({ onDetected, onCancel }: Props) {
           import('@zxing/browser'),
           import('@zxing/library'),
         ]);
-        const hints = new Map([[DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A]]]);
+        // Кроме обычных штрихкодов — UPC-E, QR и DataMatrix («Честный знак»): в них часто записан тот же штрихкод товара.
+        const hints = new Map([
+          [
+            DecodeHintType.POSSIBLE_FORMATS,
+            [BarcodeFormat.EAN_13, BarcodeFormat.EAN_8, BarcodeFormat.UPC_A, BarcodeFormat.UPC_E, BarcodeFormat.QR_CODE, BarcodeFormat.DATA_MATRIX],
+          ],
+        ]);
         const reader = new BrowserMultiFormatReader(hints);
         if (stopped || !videoRef.current) return;
         controls = await reader.decodeFromConstraints(
@@ -52,11 +59,14 @@ export function BarcodeScanner({ onDetected, onCancel }: Props) {
           videoRef.current,
           (result) => {
             if (!result || stopped) return;
-            const ean = parseEan(result.getText());
-            if (ean) {
+            const code = parseScannedCode(result.getText(), BarcodeFormat[result.getBarcodeFormat()]);
+            if (code.kind === 'ean') {
               stopped = true;
               controls?.stop();
-              detectedRef.current(ean);
+              detectedRef.current(code.code);
+            } else {
+              // QR со ссылкой или текстом: штрихкода товара в нём нет — говорим об этом и сканируем дальше.
+              setNotice(code.kind === 'url' ? `В коде ссылка, а не штрихкод товара: ${code.url.slice(0, 80)}` : 'В коде нет штрихкода товара.');
             }
           },
         );
@@ -109,7 +119,7 @@ export function BarcodeScanner({ onDetected, onCancel }: Props) {
       </div>
       <div className="scanner-title">
         <b>Сканировать штрихкод</b>
-        <span>{error ? 'Камера недоступна' : starting ? 'Запуск камеры…' : 'Поместите красную линию поперёк штрихкода'}</span>
+        <span>{error ? 'Камера недоступна' : starting ? 'Запуск камеры…' : notice ?? 'Поместите красную линию поперёк штрихкода или наведите на QR / DataMatrix'}</span>
       </div>
       {error ? (
         <p className="notice error scanner-error" role="alert">

@@ -10,6 +10,8 @@ import {
   computePlan,
   nutritionPlanSchema,
   PLAN_SOURCES,
+  ADAPTIVE_WINDOW_DAYS,
+  estimateActualBurn,
   type NutritionPlan,
 } from '../../domain/plan.ts';
 import { formatDateKey, formatDateTime, fromLocalInputValue, getZonedParts, toDateKey, todayKey } from '../../domain/time.ts';
@@ -226,6 +228,7 @@ function PlanForm({ plan, weightKg, onGoWeight }: { plan?: NutritionPlan; weight
       </Field>
 
       {preview && <PlanSummary t={preview} />}
+      {preview && <ActualBurnCard t={preview} />}
 
       <button type="submit" className="btn primary">
         Сохранить план
@@ -284,6 +287,52 @@ export function PlanSummary({ t }: { t: ReturnType<typeof computePlan> }) {
           {w}
         </p>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Фактический расход по записям за 3 недели: сколько в среднем съедено и как менялась масса. Помогает поправить
+ * калорийность, если формула ошиблась для конкретного человека. Только оценка: питание должно быть записано почти всё.
+ */
+function ActualBurnCard({ t }: { t: ReturnType<typeof computePlan> }) {
+  const data = useLiveQuery(async () => {
+    const from = toDateKey(new Date(Date.now() - (ADAPTIVE_WINDOW_DAYS + 1) * 86_400_000).toISOString());
+    const meals = await db.meals.where('date').aboveOrEqual(from).toArray();
+    const weights = await db.bodyWeights.toArray();
+    const intake = new Map<string, number>();
+    for (const m of meals) intake.set(m.date, (intake.get(m.date) ?? 0) + m.nutrients.kcal);
+    return { intake, weights: weights.map((w) => ({ date: toDateKey(w.measuredAt), kg: w.weightKg })) };
+  }, []);
+  if (!data) return null;
+  const est = estimateActualBurn(data.intake, data.weights, todayKey(), t.weeklyChangeKg ?? 0);
+  if (!est) {
+    return (
+      <p className="small muted">
+        Через 2–3 недели записей питания и хотя бы 4 взвешиваний здесь появится ваш фактический расход — по тому, сколько вы ели и как
+        менялся вес. Он точнее формулы.
+      </p>
+    );
+  }
+  const capped = est.suggestedKcal !== null && est.suggestedKcal < t.bmr;
+  return (
+    <div className="card stack">
+      <b>По вашим данным за 3 недели</b>
+      <p className="small">
+        Съедено в среднем {est.avgIntakeKcal.toLocaleString('ru-RU')} ккал ({est.loggedDays} дн. с записями) · вес {est.weeklyTrendKg > 0 ? '+' : ''}
+        {r1(est.weeklyTrendKg)} кг/нед · фактический расход ≈ <b>{est.tdee.toLocaleString('ru-RU')} ккал</b> (по формуле{' '}
+        {t.tdee.toLocaleString('ru-RU')}).
+      </p>
+      {est.suggestedKcal !== null && (
+        <p className="small">
+          Для нужного темпа — около <b>{Math.max(est.suggestedKcal, t.bmr).toLocaleString('ru-RU')} ккал</b> в день
+          {capped ? ' (ограничено основным обменом — темп к дате не получится, пересмотрите цель)' : ''}.
+        </p>
+      )}
+      <p className="small muted">
+        Оценка: расход = средний рацион − изменение массы × 7700 ккал/кг. Если часть еды не записана, расход получится заниженным. Меняйте
+        калорийность постепенно (на 10–15%) и смотрите на тренд за 2–3 недели, а не на один день.
+      </p>
     </div>
   );
 }

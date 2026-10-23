@@ -29,7 +29,32 @@ describe('расстояние с опечатками', () => {
 const index = createSearchIndex(REFERENCE_FOODS, (f) => ({ name: f.name, aliases: f.aliases }));
 const top = (q: string, n = 5) => searchIndex(index, q, { limit: n }).map((h) => h.item.name);
 
+describe('числа в запросе', () => {
+  it('десятичные дроби — одно слово, «5 %» = «5%»', () => {
+    expect(searchWords('Молоко 3,2%')).toEqual(['молоко', '3.2%']);
+    expect(searchWords('молоко 3.2 %')).toEqual(['молоко', '3.2%']);
+    expect(searchWords('Сыр. Твёрдый 45 %')).toEqual(['сыр', 'твердый', '45%']);
+  });
+
+  it('число не обязательно, но поднимает совпадающую жирность', () => {
+    const items = ['Творог 9%', 'Творог 5%', 'Молоко 3,2%', 'Молоко 2,5%', 'Кефир 1%'];
+    const idx = createSearchIndex(items, (n) => ({ name: n }));
+    expect(searchIndex(idx, 'творог 5%').map((h) => h.item)).toEqual(['Творог 5%', 'Творог 9%']);
+    expect(searchIndex(idx, 'молоко 3,2')[0]!.item).toBe('Молоко 3,2%');
+    expect(searchIndex(idx, 'молоко 3.2').every((h) => h.full)).toBe(true);
+  });
+
+  it('запрос только из числа ищет по числу', () => {
+    const idx = createSearchIndex(['Творог 5%', 'Молоко 3,2%'], (n) => ({ name: n }));
+    expect(searchIndex(idx, '5%').map((h) => h.item)).toEqual(['Творог 5%']);
+  });
+});
+
 describe('умный поиск по встроенной базе', () => {
+  it('формы слова и синонимы: «картофель», «картофеля», «картошку»', () => {
+    for (const q of ['картофель', 'картофеля', 'картошку', 'картофан']) expect(top(q, 5).some((n) => n.startsWith('Картофель')), q).toBe(true);
+  });
+
   it('«картошка» находит картофель (синонимы)', () => {
     const names = top('картошка', 10);
     expect(names.some((n) => n.startsWith('Картофель'))).toBe(true);

@@ -7,12 +7,23 @@
 import { stemRu } from './russianStemmer.ts';
 
 export function normalizeSearchText(s: string): string {
-  return s
-    .toLocaleLowerCase('ru-RU')
-    .replace(/ё/g, 'е')
-    .replace(/[^\p{L}\p{N}%]+/gu, ' ')
-    .trim();
+  return (
+    s
+      .toLocaleLowerCase('ru-RU')
+      .replace(/ё/g, 'е')
+      // Десятичные числа — одно слово: «3,2» и «3.2» → «3.2» (раньше распадались на «3» и «2»).
+      .replace(/(\d)[.,](\d)/g, '$1.$2')
+      .replace(/(\d)\s+%/g, '$1%')
+      .replace(/[^\p{L}\p{N}%.]+/gu, ' ')
+      // Точка остаётся только внутри числа.
+      .replace(/\.(?!\d)|(?<!\d)\./g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 }
+
+/** Слово с цифрами (жирность, вес, номер) — уточнение, а не обязательное условие поиска. */
+const isNumeric = (w: string) => /\d/.test(w);
 
 export function searchWords(query: string): string[] {
   const n = normalizeSearchText(query);
@@ -26,7 +37,18 @@ export function searchWords(query: string): string[] {
 const SYNONYM_GROUPS: string[][] = [
   ['картошка', 'картофель', 'картофельный', 'картоха', 'картофан'],
   ['пюре', 'толченка', 'толченый'],
-  ['курица', 'куриный', 'цыпленок', 'курятина', 'бройлер'],
+  ['курица', 'куриный', 'цыпленок', 'курятина', 'бройлер', 'кура', 'курочка'],
+  ['грудка', 'грудинка'],
+  ['шаурма', 'шаверма', 'шавуха'],
+  ['бургер', 'гамбургер', 'чизбургер'],
+  ['йогурт', 'йогуртовый'],
+  ['мясо', 'мясной'],
+  ['фарш', 'фаршевый'],
+  ['кукуруза', 'кукурузный'],
+  ['фасоль', 'фасолевый'],
+  ['горох', 'гороховый'],
+  ['чечевица', 'чечевичный'],
+  ['ряженка', 'варенец'],
   ['говядина', 'говяжий', 'телятина'],
   ['свинина', 'свиной'],
   ['индейка', 'индюшка', 'индюшатина'],
@@ -111,6 +133,8 @@ const allowedTypos = (len: number) => (len < 4 ? 0 : len < 7 ? 1 : 2);
 
 interface QueryWord {
   raw: string;
+  /** Число («5%», «3.2») — не обязательно для совпадения, но поднимает подходящие варианты. */
+  optional: boolean;
   stem: string;
   synonyms: Set<string>;
   typos: number;
@@ -197,16 +221,26 @@ export function searchIndex<T>(index: SearchIndex<T>, query: string, opts: Searc
   if (words.length === 0) return [];
   const qw: QueryWord[] = words.map((raw) => {
     const stem = stemOf(raw);
-    return { raw, stem, synonyms: synonymStems(stem), typos: allowedTypos(raw.length) };
+    return { raw, stem, synonyms: synonymStems(stem), typos: isNumeric(raw) ? 0 : allowedTypos(raw.length), optional: false };
   });
+  // Числа необязательны, если в запросе есть хотя бы одно слово: «творог 5%» покажет и творог 9%, но 5% — выше.
+  if (qw.some((w) => !isNumeric(w.raw))) for (const w of qw) w.optional = isNumeric(w.raw);
+  const required = qw.filter((w) => !w.optional).length;
 
   const hits: SearchHit<T>[] = [];
   for (const doc of index.docs) {
     let sum = 0;
     let matched = 0;
     let firstBonus = 0;
+    let numberBonus = 0;
     for (let k = 0; k < qw.length; k++) {
-      const r = scoreWord(qw[k]!, doc);
+      const w = qw[k]!;
+      const r = scoreWord(w, doc);
+      if (w.optional) {
+        // Совпало число (та же жирность) — заметный плюс; не совпало — без штрафа.
+        if (r.score >= 85) numberBonus += 20;
+        continue;
+      }
       if (r.score > 0) {
         matched++;
         sum += r.score;
@@ -214,11 +248,11 @@ export function searchIndex<T>(index: SearchIndex<T>, query: string, opts: Searc
       }
     }
     if (matched === 0) continue;
-    const full = matched === qw.length;
+    const full = matched === required;
     // Частичное совпадение показываем, только если найдено больше половины слов.
-    if (!full && matched * 2 <= qw.length) continue;
+    if (!full && matched * 2 <= required) continue;
     const extraTokens = Math.max(0, doc.tokens.length - qw.length);
-    let score = sum / qw.length + firstBonus - Math.min(6, extraTokens * 0.5) + (opts.boost?.(doc.item) ?? 0);
+    let score = sum / required + firstBonus + numberBonus - Math.min(6, extraTokens * 0.5) + (opts.boost?.(doc.item) ?? 0);
     if (!full) score -= 40;
     hits.push({ item: doc.item, score, full });
   }

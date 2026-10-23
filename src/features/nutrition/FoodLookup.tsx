@@ -2,7 +2,7 @@
 // пользователем перед сохранением в свой каталог.
 import { useEffect, useState, type FormEvent } from 'react';
 import type { CatalogFood, CatalogResponse } from '../../../shared/catalog.ts';
-import { parseEan } from '../../../shared/ean.ts';
+import { parseScannedCode } from '../../../shared/ean.ts';
 import { findFoodByBarcode, saveCatalogFood } from '../../data/foods.ts';
 import { unitLabel } from '../../domain/nutrition.ts';
 import type { Food } from '../../domain/schemas.ts';
@@ -229,11 +229,17 @@ export function BarcodeLookup({ onSelected, onManual, provider = barcodeCatalog 
   async function lookup(raw: string) {
     setError(undefined);
     setResult(null);
-    const ean = parseEan(raw);
-    if (!ean) {
-      setError('Некорректный штрихкод: нужно 8 или 13 цифр с верной контрольной цифрой');
+    // В поле можно вставить и цифры, и строку из QR/DataMatrix, и ссылку GS1 — достанем штрихкод.
+    const scanned = parseScannedCode(raw);
+    if (scanned.kind !== 'ean') {
+      setError(
+        scanned.kind === 'url'
+          ? 'Это ссылка без штрихкода товара. Введите цифры под штрихкодом (8, 12, 13 или 14).'
+          : 'Неверный штрихкод: нужно 8, 12, 13 или 14 цифр с верной контрольной цифрой',
+      );
       return;
     }
+    const ean = scanned.code;
     setCode(ean);
     setLoading(true);
     try {
@@ -302,7 +308,7 @@ export function BarcodeLookup({ onSelected, onManual, provider = barcodeCatalog 
             void lookup(code);
           }}
         >
-          <Field label="Штрихкод (EAN-13 или EAN-8)" error={error}>
+          <Field label="Штрихкод (цифры под полосками или строка из QR / DataMatrix)" error={error}>
             {(p) => (
               <input {...p} className="input" inputMode="numeric" autoComplete="off" value={code} onChange={(e) => setCode(e.target.value)} placeholder="4600000000000" />
             )}

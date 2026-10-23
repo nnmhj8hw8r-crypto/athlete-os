@@ -28,6 +28,13 @@ export const offProductUrl = (code: string) => `https://world.openfoodfacts.org/
 
 let loading: Promise<OfflineBase | null> | null = null;
 
+/** Названия в выгрузке OFF иногда содержат HTML-сущности («&quot;Бургер&quot;») — показываем как текст. */
+export function decodeEntities(s: string): string {
+  return s.replace(/&(quot|amp|apos|#39|lt|gt|nbsp|laquo|raquo);/g, (_, e: string) =>
+    ({ quot: '"', amp: '&', apos: "'", '#39': "'", lt: '<', gt: '>', nbsp: ' ', laquo: '«', raquo: '»' })[e] ?? _,
+  );
+}
+
 export function parseOfflineBase(json: unknown): OfflineBase {
   const payload = json as { generated?: string; products?: Row[] };
   if (!payload || !Array.isArray(payload.products)) throw new Error('Неверный формат офлайн-базы');
@@ -37,8 +44,8 @@ export function parseOfflineBase(json: unknown): OfflineBase {
     products.push({
       id: `off:${r[0]}`,
       code: r[0],
-      name: r[1],
-      brand: r[2] || undefined,
+      name: decodeEntities(r[1]),
+      brand: r[2] ? decodeEntities(r[2]) : undefined,
       basis: r[3] === 1 ? 'ml' : 'g',
       per100: { kcal: r[4], protein: r[5], fat: r[6], carbs: r[7] },
       extra: r[8] || undefined,

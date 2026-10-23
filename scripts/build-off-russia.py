@@ -6,9 +6,11 @@
 #
 # Запуск: python scripts/build-off-russia.py <products.csv.gz> public/data/off-ru.json
 #
-# В файл попадают только товары с отметкой «Россия» (countries_tags содержит en:russia), со штрихкодом
-# EAN/UPC и полным КБЖУ на 100 г/мл. Неполные карточки отбрасываются: ноль вместо «нет данных» не пишем.
-import csv, gzip, json, re, sys
+# В файл попадают товары, которые продаются в России и рядом (v0.9.5): отметка страны «Россия», «Беларусь»,
+# «Казахстан», «Киргизия», «Армения» — или российский/белорусский/казахстанский префикс штрихкода GS1
+# (460–469, 481, 487) при названии на кириллице. Нужны штрихкод EAN/UPC и полное КБЖУ на 100 г/мл:
+# неполные карточки отбрасываются — ноль вместо «нет данных» не пишем. HTML-сущности в названиях раскрываются.
+import csv, gzip, html, json, re, sys
 
 SRC, OUT = sys.argv[1], sys.argv[2]
 csv.field_size_limit(10**9)
@@ -44,7 +46,11 @@ def r(x):
     return round(x, 1) if x >= 1 else round(x, 3)
 
 
-stats = {'rows': 0, 'russia': 0, 'kept': 0, 'no_name': 0, 'no_barcode': 0, 'incomplete': 0, 'implausible': 0}
+COUNTRIES = ('en:russia', 'en:belarus', 'en:kazakhstan', 'en:kyrgyzstan', 'en:armenia')
+PREFIX = re.compile(r'^(?:0?)(46[0-9]|481|487)')
+CYR = re.compile(r'[а-яё]', re.I)
+
+stats = {'rows': 0, 'russia': 0, 'by_prefix': 0, 'kept': 0, 'no_name': 0, 'no_barcode': 0, 'incomplete': 0, 'implausible': 0}
 out, seen = [], set()
 with gzip.open(SRC, 'rt', encoding='utf-8', errors='replace', newline='') as f:
     reader = csv.reader(f, delimiter='\t', quoting=csv.QUOTE_NONE)
@@ -58,14 +64,18 @@ with gzip.open(SRC, 'rt', encoding='utf-8', errors='replace', newline='') as f:
 
     for row in reader:
         stats['rows'] += 1
-        if 'en:russia' not in get(row, 'countries_tags'):
-            continue
-        stats['russia'] += 1
         code = get(row, 'code').strip()
+        tags = get(row, 'countries_tags')
+        if any(c in tags for c in COUNTRIES):
+            stats['russia'] += 1
+        elif PREFIX.match(code) and CYR.search(get(row, 'product_name')):
+            stats['by_prefix'] += 1
+        else:
+            continue
         if not re.fullmatch(r'\d{8,14}', code) or code in seen:
             stats['no_barcode'] += 1
             continue
-        name = re.sub(r'\s+', ' ', get(row, 'product_name')).strip()
+        name = re.sub(r'\s+', ' ', html.unescape(get(row, 'product_name'))).strip()
         if not name:
             stats['no_name'] += 1
             continue
@@ -90,7 +100,7 @@ with gzip.open(SRC, 'rt', encoding='utf-8', errors='replace', newline='') as f:
                     extra[key] = r(v)
         brand = ''
         if brand_col is not None and brand_col < len(row):
-            brand = row[brand_col].split(',')[0].strip()
+            brand = html.unescape(row[brand_col].split(',')[0]).strip()
         seen.add(code)
         out.append([code, name[:160], brand[:80], basis, r(kcal), r(p), r(fat), r(c), extra or 0])
         stats['kept'] += 1
