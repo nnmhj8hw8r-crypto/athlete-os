@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_LAYOUT } from './dashboard.ts';
-import { defaultLevel, emptyLayout, sexFromAnswer, feedbackUrl, normalizeProfile, recommendedWidgets, revealFullWidgets, shouldAskFeedback } from './profile.ts';
+import { defaultLevel, emptyLayout, sexFromAnswer, feedbackUrl, bugReportUrl, normalizeProfile, recommendedWidgets, revealFullWidgets, shouldAskFeedback } from './profile.ts';
 
 const visible = (l: { id: string; visible: boolean }[]) => l.filter((w) => w.visible).map((w) => w.id);
 
@@ -53,5 +53,9 @@ describe('профиль из приветствия', () => {
 
   it('ссылка на отзыв — только версия и сценарий', () => {
     expect(feedbackUrl('https://tally.so/r/q54zM2', '0.9.0', 'gym')).toBe('https://tally.so/r/q54zM2?v=0.9.0&mode=gym');
+  });
+
+  it('ссылка «Сообщить об ошибке» — только версия и тип', () => {
+    expect(bugReportUrl('https://tally.so/r/jea4E4', '0.11.0')).toBe('https://tally.so/r/jea4E4?v=0.11.0&kind=manual');
   });
 });

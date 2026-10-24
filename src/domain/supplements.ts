@@ -30,6 +30,11 @@ export function dosesForDay(items: readonly Supplement[], day: DateKey): Dose[] 
   return out.sort((a, b) => (a.time || '99').localeCompare(b.time || '99') || a.supplement.name.localeCompare(b.supplement.name, 'ru'));
 }
 
+/** Ключ «уже напомнили»: с датой, чтобы ежедневный приём напоминался снова на следующий день. */
+export function reminderKey(day: DateKey, doseKey: string): string {
+  return `${day}|${doseKey}`;
+}
+
 /** Переключить отметку приёма и убрать дни старше 60. */
 export function toggleDose(log: SupplementLog, day: DateKey, key: string): SupplementLog {
   const list = log[day] ?? [];

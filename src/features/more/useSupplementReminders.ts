@@ -4,7 +4,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState } from 'react';
 import { db } from '../../data/db.ts';
-import { dosesForDay, normalizeLog, SUPPLEMENT_LOG_KEY } from '../../domain/supplements.ts';
+import { dosesForDay, normalizeLog, reminderKey, SUPPLEMENT_LOG_KEY } from '../../domain/supplements.ts';
 import { getZonedParts, todayKey } from '../../domain/time.ts';
 
 const REMINDED_KEYS = new Set<string>();
@@ -12,13 +12,16 @@ const REMINDED_KEYS = new Set<string>();
 function showReminder(name: string, body: string, tag: string): void {
   const title = `Пора: ${name}`;
   const icon = `${import.meta.env.BASE_URL}icons/icon-192.png`;
-  if ('serviceWorker' in navigator) {
-    void navigator.serviceWorker.ready
-      .then((r) => r.showNotification(title, { body, tag, icon }))
-      .catch(() => new Notification(title, { body, tag }));
-  } else {
-    new Notification(title, { body, tag });
-  }
+  // Android Chrome запрещает `new Notification`: запасной путь не должен ронять приложение (напоминание — дополнение).
+  const fallback = () => {
+    try {
+      new Notification(title, { body, tag });
+    } catch {
+      /* уведомление недоступно — основное напоминание в Календаре */
+    }
+  };
+  if ('serviceWorker' in navigator) void navigator.serviceWorker.ready.then((r) => r.showNotification(title, { body, tag, icon })).catch(fallback);
+  else fallback();
 }
 
 export function useSupplementReminders() {
@@ -43,8 +46,7 @@ export function useSupplementReminders() {
         const wait = ((h! * 60 + m!) - nowMin) * 60_000 - now.second * 1000;
         if (wait < -60_000) return undefined;
         return window.setTimeout(() => {
-          // Ключ с датой: ежедневный приём напоминается снова на следующий день без перезапуска приложения.
-          const once = `${day}|${d.key}`;
+          const once = reminderKey(day, d.key);
           if (REMINDED_KEYS.has(once)) return;
           REMINDED_KEYS.add(once);
           showReminder(d.supplement.name, `${d.supplement.dose.toLocaleString('ru-RU')} ${d.supplement.doseUnit} — отметьте в «Добавках»`, d.key);

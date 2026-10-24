@@ -20,3 +20,6 @@ export const SPORT_LABEL: Record<Sport, string> = {
 
 /** Форма отзывов демо-версии (Tally). Ответы разбираются вручную для улучшения приложения. */
 export const FEEDBACK_FORM_URL = 'https://tally.so/r/q54zM2';
+
+/** Форма «Сообщить об ошибке» (Tally, опубликована 24.10.2026). Передаются только версия и тип обращения, не записи пользователя. */
+export const BUG_FORM_URL = 'https://tally.so/r/jea4E4';

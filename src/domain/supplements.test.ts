@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Supplement } from './schemas.ts';
-import { dosesForDay, isActiveOn, normalizeLog, supplementIcs, toggleDose } from './supplements.ts';
+import { dosesForDay, isActiveOn, normalizeLog, reminderKey, supplementIcs, toggleDose } from './supplements.ts';
 
 const base = { createdAt: '2026-10-01T00:00:00.000Z', updatedAt: '2026-10-01T00:00:00.000Z', dose: 5, doseUnit: 'г' };
 const creatine: Supplement = { ...base, id: 'a', name: 'Креатин', times: ['20:00', '08:00'] };
@@ -20,6 +20,11 @@ describe('добавки', () => {
     log = toggleDose(log, '2026-10-24', 'a@08:00');
     expect(log).toEqual({});
     expect(normalizeLog({ '2026-10-24': ['x', 1], bad: ['y'] })).toEqual({ '2026-10-24': ['x'] });
+  });
+
+  it('ключ напоминания отличается по дням, но одинаков в пределах дня', () => {
+    expect(reminderKey('2026-10-24', 'a@08:00')).not.toBe(reminderKey('2026-10-25', 'a@08:00'));
+    expect(reminderKey('2026-10-24', 'a@08:00')).toBe(reminderKey('2026-10-24', 'a@08:00'));
   });
 
   it('файл календаря: событие на каждое время, ежедневно, до даты окончания', () => {

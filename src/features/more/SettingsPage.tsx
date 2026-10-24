@@ -3,13 +3,13 @@
 // пользователя); режим разработчика — 7 нажатий по версии, открывает раздел «Для разработчика».
 import { useEffect, useState } from 'react';
 import { APP_VERSION } from '../../appVersion.ts';
-import { useLastBackup } from '../../data/appMeta.ts';
+import { setPersonalMode, useLastBackup, usePersonalMode } from '../../data/appMeta.ts';
 import { db } from '../../data/db.ts';
 import { setSetting } from '../../data/repo.ts';
 import { normalizeLayout } from '../../domain/dashboard.ts';
 import { revealFullWidgets, SCENARIO_META, SEX_LABEL, type AppLevel, type Sex } from '../../domain/profile.ts';
 import { formatDateTime } from '../../domain/time.ts';
-import { Card, Page, Segmented } from '../../ui/components.tsx';
+import { Card, Modal, Page, Segmented } from '../../ui/components.tsx';
 import { requestStorage } from '../../ui/devicePermissions.ts';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
@@ -41,6 +41,8 @@ export function SettingsPage() {
   const profile = useProfile();
   const devMode = useDevMode();
   const lastBackup = useLastBackup();
+  const personal = usePersonalMode();
+  const [askPersonal, setAskPersonal] = useState(false);
   const [taps, setTaps] = useState(0);
   const [storage, setStorage] = useState<StorageInfo | null>(null);
 
@@ -144,6 +146,18 @@ export function SettingsPage() {
         )}
       </Card>
 
+      <Card title="Личный режим" info={<p>Справочник по добавкам из консенсуса Международного олимпийского комитета (2018): схема, уровень доказательности, риск. Выключен — приложение ничего не подсказывает. Это не назначение и не замена врача.</p>}>
+        <div className="settings-row">
+          <span>
+            Подсказки по добавкам
+            <small className="muted">{personal ? 'включены — раздел «Добавки»' : 'выключены'}</small>
+          </span>
+          <button type="button" className="btn small" onClick={() => (personal ? void setPersonalMode(false).then(() => notify('Личный режим выключен')) : setAskPersonal(true))}>
+            {personal ? 'Выключить' : 'Включить'}
+          </button>
+        </div>
+      </Card>
+
       <Card>
         <a className="settings-link" href={href('/more/permissions')}>
           <span>Правила и разрешения</span>
@@ -160,6 +174,35 @@ export function SettingsPage() {
           </a>
         )}
       </Card>
+
+      {askPersonal && (
+        <Modal
+          title="Включить личный режим?"
+          onClose={() => setAskPersonal(false)}
+          footer={
+            <>
+              <button type="button" className="btn" onClick={() => setAskPersonal(false)}>
+                Отмена
+              </button>
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() =>
+                  void setPersonalMode(true).then(() => {
+                    setAskPersonal(false);
+                    notify('Личный режим включён');
+                  })
+                }
+              >
+                Понимаю, включить
+              </button>
+            </>
+          }
+        >
+          <p>В «Добавках» появится справочник по пяти добавкам, которые поддерживает консенсус IOC: кофеин, креатин, бета-аланин, сода, нитрат.</p>
+          <p>У каждой — источник, уровень доказательности и риск. Это обобщение научного консенсуса, а не рекомендация лично вам: решение о приёме — с врачом или спортивным диетологом, с проверкой партии на допинг (РУСАДА / WADA).</p>
+        </Modal>
+      )}
 
       <button type="button" className="version-line" onClick={tapVersion}>
         Personal Athlete OS {APP_VERSION} · демо

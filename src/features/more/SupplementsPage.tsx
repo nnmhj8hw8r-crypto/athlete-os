@@ -3,9 +3,11 @@
 // Приложение ничего не назначает: что, сколько и когда принимать, решает пользователь (со специалистом).
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useState, type FormEvent } from 'react';
+import { usePersonalMode } from '../../data/appMeta.ts';
 import { db } from '../../data/db.ts';
 import { deleteEntity, saveEntity, setSetting } from '../../data/repo.ts';
 import { emptyToUndefined, numberToField, parseDecimal, type FieldErrors } from '../../domain/form.ts';
+import { SUPPLEMENT_FACTS, SUPPLEMENT_GENERAL, SUPPLEMENT_SOURCE } from '../../domain/personalMode.ts';
 import type { Supplement } from '../../domain/schemas.ts';
 import { dosesForDay, isActiveOn, normalizeLog, SUPPLEMENT_LOG_KEY, supplementIcs, toggleDose } from '../../domain/supplements.ts';
 import { formatDateKey, todayKey } from '../../domain/time.ts';
@@ -33,6 +35,7 @@ export function SupplementsPage() {
   const items = useLiveQuery(() => db.supplements.orderBy('name').toArray(), []);
   const log = useLiveQuery(async () => normalizeLog((await db.settings.get(SUPPLEMENT_LOG_KEY))?.value), []);
   const [dlg, setDlg] = useState<{ item?: Supplement } | null>(null);
+  const personal = usePersonalMode();
   const [info, setInfo] = useState(false);
   const confirmDelete = useConfirmDelete();
   const { notify } = useFeedback();
@@ -60,6 +63,26 @@ export function SupplementsPage() {
           <p>Напоминание: кнопка {Icons.bell} у добавки сохраняет событие в «Календарь» — iPhone напомнит в нужное время, даже если приложение закрыто.</p>
           <p className="muted">Решения о приёме — со специалистом и с учётом антидопинговых правил (РУСАДА / WADA): выбирайте добавки с проверкой партии на допинг.</p>
         </InfoPanel>
+      )}
+
+      {personal && (
+        <Card title="Справочник (личный режим)" info={<p>{SUPPLEMENT_GENERAL}</p>}>
+          <p className="muted small">
+            Источник: {SUPPLEMENT_SOURCE.text}, <a href={`https://pubmed.ncbi.nlm.nih.gov/${SUPPLEMENT_SOURCE.pmid}/`} target="_blank" rel="noreferrer">PMID {SUPPLEMENT_SOURCE.pmid}</a>. Не назначение: обсудите со специалистом.
+          </p>
+          {SUPPLEMENT_FACTS.map((f) => (
+            <details key={f.id} className="fact">
+              <summary>
+                <b>{f.name}</b> <span className={`risk risk-${f.risk === 'низкий' ? 'low' : f.risk === 'умеренный' ? 'mid' : 'high'}`}>риск: {f.risk}</span>
+              </summary>
+              <p>{f.effect}</p>
+              <p><b>Схема в консенсусе:</b> {f.protocol}</p>
+              <p><b>Доказательность:</b> {f.evidence}</p>
+              <p><b>Осторожно:</b> {f.cautions}</p>
+              <p className="muted small">Допинг: проверка партии обязательна (сертификат на партию).</p>
+            </details>
+          ))}
+        </Card>
       )}
 
       {items === undefined ? (

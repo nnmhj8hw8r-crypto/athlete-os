@@ -254,3 +254,4 @@ Perek.us (если сервер с ключом доступен) → Open Food 
 - Планы фаз сезона: связь план/факт уже есть на уровне занятия (`workout.programId`, `workout.scheduleId`);
   фазы сезона — отдельная таблица поверх программ и плана недели.
 - Видео техники: поле ссылки/файла у упражнения каталога (своего) или в `settings.exerciseNotes`.
+- `src/domain/personalMode.ts` — личный режим и справочник добавок (`settings.personalMode`); включение — `src/data/appMeta.ts`.

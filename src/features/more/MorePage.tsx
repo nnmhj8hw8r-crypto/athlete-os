@@ -1,5 +1,8 @@
 // «Ещё» (v0.9.2): пункты сгруппированы по смыслу, описания — простыми словами, без технических терминов.
 import type { ReactNode } from 'react';
+import { APP_VERSION } from '../../appVersion.ts';
+import { BUG_FORM_URL } from '../../config.ts';
+import { bugReportUrl } from '../../domain/profile.ts';
 import { Page } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
@@ -19,6 +22,7 @@ interface Item {
 
 export function MorePage() {
   const feedback = useFeedbackUrl();
+  const bugUrl = bugReportUrl(BUG_FORM_URL, APP_VERSION);
   const devMode = useDevMode();
   const { notify } = useFeedback();
   const share = () => void shareApp().then((r) => SHARE_MESSAGE[r] && notify(SHARE_MESSAGE[r]!, r === 'failed' ? 'error' : 'info'));
@@ -47,6 +51,7 @@ export function MorePage() {
         ...(devMode ? [{ icon: Icons.code, title: 'Для разработчика', text: 'Проверки и сведения об устройстве', path: '/more/dev' }] : []),
         { icon: Icons.arrowUp, title: 'Поделиться с друзьями', text: 'Отправить ссылку — у каждого своё приложение, ваши записи не передаются', onClick: share },
         { icon: Icons.pen, title: 'Оставить отзыв', text: 'Что понравилось и чего не хватает — 2–3 минуты во внешней форме', url: feedback },
+        { icon: Icons.bug, title: 'Сообщить об ошибке', text: 'Что-то сломалось? Во внешней форме уйдут только ваш текст и версия приложения', url: bugUrl },
         { icon: Icons.home, title: 'Знакомство с приложением', text: 'Показать приветствие снова и поменять сценарий: борец, зал или для себя', path: '/welcome' },
       ],
     },

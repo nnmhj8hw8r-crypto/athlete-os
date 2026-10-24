@@ -1316,3 +1316,12 @@ dialog.scanner-full::backdrop { background: #05070d; }
 .chart .dot.small { opacity: 0.55; }
 .chart .last-label { font-weight: 700; fill: var(--text); font-size: 13px; }
 @media (prefers-reduced-motion: reduce) { .chart .line.draw { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; } }
+
+/* Личный режим: справочник по добавкам (v0.11) */
+.fact { border-top: 1px solid var(--border); padding-block: 8px; }
+.fact summary { cursor: pointer; min-block-size: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fact p { margin: 4px 0; }
+.risk { font-size: 0.8rem; }
+.risk-low { color: var(--success, var(--text)); }
+.risk-mid { color: var(--warning); }
+.risk-high { color: var(--danger, var(--warning)); }

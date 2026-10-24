@@ -173,3 +173,11 @@ export function feedbackUrl(base: string, version: string, scenario?: Scenario):
   if (scenario) u.searchParams.set('mode', scenario);
   return u.toString();
 }
+
+/** Адрес формы «Сообщить об ошибке»: только версия приложения и пометка, что обращение ручное. */
+export function bugReportUrl(base: string, version: string): string {
+  const u = new URL(base);
+  u.searchParams.set('v', version);
+  u.searchParams.set('kind', 'manual');
+  return u.toString();
+}
