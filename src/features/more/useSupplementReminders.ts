@@ -43,8 +43,10 @@ export function useSupplementReminders() {
         const wait = ((h! * 60 + m!) - nowMin) * 60_000 - now.second * 1000;
         if (wait < -60_000) return undefined;
         return window.setTimeout(() => {
-          if (REMINDED_KEYS.has(d.key)) return;
-          REMINDED_KEYS.add(d.key);
+          // Ключ с датой: ежедневный приём напоминается снова на следующий день без перезапуска приложения.
+          const once = `${day}|${d.key}`;
+          if (REMINDED_KEYS.has(once)) return;
+          REMINDED_KEYS.add(once);
           showReminder(d.supplement.name, `${d.supplement.dose.toLocaleString('ru-RU')} ${d.supplement.doseUnit} — отметьте в «Добавках»`, d.key);
         }, Math.max(0, wait));
       });
