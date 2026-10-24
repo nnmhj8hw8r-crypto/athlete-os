@@ -2,12 +2,14 @@ import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { DashboardPage } from './features/dashboard/DashboardPage.tsx';
 import { AiSummaryPage } from './features/more/AiSummaryPage.tsx';
 import { BackupPage } from './features/more/BackupPage.tsx';
+import { ChangelogPage } from './features/more/ChangelogPage.tsx';
 import { DevPage } from './features/more/DevPage.tsx';
 import { LicensesPage, PermissionsPage } from './features/more/InfoPages.tsx';
 import { MorePage } from './features/more/MorePage.tsx';
 import { SettingsPage } from './features/more/SettingsPage.tsx';
 import { SourcesPage } from './features/more/SourcesPage.tsx';
 import { SupplementsPage } from './features/more/SupplementsPage.tsx';
+import { useMarkSeenOnFirstRun, WhatsNew } from './features/more/WhatsNew.tsx';
 import { useSupplementReminders } from './features/more/useSupplementReminders.ts';
 import { OnboardingPage, useFirstRun } from './features/onboarding/OnboardingPage.tsx';
 import { useLevel } from './features/onboarding/useProfile.ts';
@@ -52,6 +54,7 @@ const PAGES: Record<string, (r: Route) => ReactNode> = {
   '/more/ai': () => <AiSummaryPage />,
   '/more/settings': () => <SettingsPage />,
   '/more/dev': () => <DevPage />,
+  '/more/dev/changelog': () => <ChangelogPage />,
   '/more/permissions': () => <PermissionsPage />,
   '/more/licenses': () => <LicensesPage />,
 };
@@ -67,6 +70,7 @@ export function App() {
   const main = MAIN.filter((n) => level === 'full' || !FULL_ONLY_PATHS.includes(n.path));
   const render = PAGES[route.path];
   useSupplementReminders();
+  useMarkSeenOnFirstRun(firstRun === true);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -85,6 +89,7 @@ export function App() {
   return (
     <FeedbackProvider>
       <div className="app">
+        <WhatsNew />
         <nav className="nav" aria-label="Основные разделы">
           <span className="nav-brand">Personal Athlete OS</span>
           {/* На телефоне — плавающая «таблетка» с разделами и отдельная круглая кнопка «Ещё». */}

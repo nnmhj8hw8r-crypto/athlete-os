@@ -7,12 +7,14 @@ import { useEffect, useState } from 'react';
 import { APP_VERSION } from '../../appVersion.ts';
 import { CONSENT_KEY, useLastBackup } from '../../data/appMeta.ts';
 import { db } from '../../data/db.ts';
+import { LAST_SEEN_VERSION_KEY } from '../../domain/changelog.ts';
 import { countAll, deleteSetting, setSetting } from '../../data/repo.ts';
 import { LEVEL_LABEL, SCENARIOS, SEX_LABEL, type AppLevel, type Scenario, type Sex } from '../../domain/profile.ts';
 import { formatDateTime } from '../../domain/time.ts';
 import { Card, Page, Segmented } from '../../ui/components.tsx';
 import { cameraState, isStandalone, notificationState, PERM_LABEL, storageState, type PermState } from '../../ui/devicePermissions.ts';
 import { useFeedback } from '../../ui/feedback.tsx';
+import { Icons } from '../../ui/icons.tsx';
 import { href, navigate } from '../../ui/router.ts';
 import { perekProvider, type ProviderStatus } from '../nutrition/catalogProvider.ts';
 import { saveProfile, useProfile } from '../onboarding/useProfile.ts';
@@ -125,10 +127,20 @@ export function DevPage() {
               Подсказки и отзыв
             </button>
           )}
+          <button type="button" className="btn" onClick={() => void deleteSetting(LAST_SEEN_VERSION_KEY)}>
+            Окно «Что нового»
+          </button>
           <button type="button" className="btn" onClick={() => void setSetting('dashboardLayout', null).then(() => notify('Главная сброшена'))}>
             Сбросить главную
           </button>
         </div>
+      </Card>
+
+      <Card>
+        <a className="settings-link" href={href('/more/dev/changelog')}>
+          <span>Журнал версий</span>
+          <span className="muted">{Icons.chevronRight}</span>
+        </a>
       </Card>
 
       <Card title="Устройство">

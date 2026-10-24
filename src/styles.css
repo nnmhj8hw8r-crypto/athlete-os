@@ -1325,3 +1325,9 @@ dialog.scanner-full::backdrop { background: #05070d; }
 .risk-low { color: var(--success, var(--text)); }
 .risk-mid { color: var(--warning); }
 .risk-high { color: var(--danger, var(--warning)); }
+
+/* Что нового / журнал версий (v0.11) */
+.whats-new h3 { margin: 0 0 6px; font-size: 1rem; }
+.whats-new ul, .changelog-section ul { margin: 0 0 10px; padding-inline-start: 18px; }
+.whats-new li, .changelog-section li { margin-block: 4px; }
+.changelog-section { margin-block: 8px; }
