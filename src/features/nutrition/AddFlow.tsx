@@ -150,6 +150,7 @@ export function AddFlow({ mealType, date, start = 'sheet', targetKcal, onClose }
           <BarcodeLookup
             onSelected={(f) => setStep({ kind: 'portion', food: foodToPortion(f) })}
             onManual={(prefill) => setStep({ kind: 'manual', prefill })}
+            onClose={() => setStep({ kind: 'sheet' })}
           />
           <button type="button" className="btn ghost" onClick={() => setStep({ kind: 'sheet' })}>
             ← Другие способы добавления

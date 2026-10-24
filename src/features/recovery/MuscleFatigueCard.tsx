@@ -1,5 +1,6 @@
 // Карта мышц во «Восстановлении»: вид «Усталость» (свежая / восстанавливается / утомлена) или
-// «Нагрузка за неделю» (подходы за 7 дней), по мотивам openGym. Нажатие — карточка группы.
+// «Нагрузка за неделю» (подходы за 7 дней), по мотивам openGym. Нажатие на мышцу или её название — карточка группы.
+// v0.10: статусы цветом, пояснения спрятаны за «i», под фигурой — группы кнопками.
 import { useState } from 'react';
 import { saveCheckin } from '../../data/checkins.ts';
 import { withoutMeta } from '../../data/repo.ts';
@@ -7,77 +8,76 @@ import { FATIGUE_LABEL, type FatigueStatus } from '../../domain/muscleFatigue.ts
 import { LARGE_MUSCLES, MUSCLE_LABEL } from '../../domain/muscles.ts';
 import type { Muscle } from '../../domain/schemas.ts';
 import { formatDateTime } from '../../domain/time.ts';
-import { Modal, Segmented } from '../../ui/components.tsx';
-import { MuscleStatusMap, StatusLegend, type Level } from './MuscleStatusMap.tsx';
+import { InfoButton, InfoPanel, Modal, Segmented } from '../../ui/components.tsx';
+import { MuscleChips, MuscleStatusMap, StatusLegend, type StatusTone } from './MuscleStatusMap.tsx';
 import type { ReadinessState } from './useReadiness.ts';
 
 type Mode = 'fatigue' | 'balance';
-const STATUS_LEVEL: Record<FatigueStatus, Level> = { fresh: 0, recovering: 2, fatigued: 3 };
-const balanceLevel = (sets: number): Level => (sets <= 0 ? 0 : sets < 4 ? 1 : sets < 10 ? 2 : 3);
+const STATUS_TONE: Record<FatigueStatus, StatusTone> = { fresh: 'fresh', recovering: 'recovering', fatigued: 'fatigued' };
+const balanceTone = (sets: number): StatusTone | undefined => (sets <= 0 ? undefined : sets < 4 ? 'lvl-1' : sets < 10 ? 'lvl-2' : 'lvl-3');
 const r1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString('ru-RU');
 
 export function MuscleFatigueCard({ state }: { state: ReadinessState }) {
   const [mode, setMode] = useState<Mode>('fatigue');
   const [open, setOpen] = useState<Muscle | null>(null);
+  const [info, setInfo] = useState(false);
   const sore = state.todayCheckin?.soreMuscles ?? [];
-  const levels = Object.fromEntries(
-    Object.values(state.loads).map((l) => [l.muscle, mode === 'fatigue' ? STATUS_LEVEL[l.status] : balanceLevel(l.weeklySets)]),
-  ) as Record<Muscle, Level>;
+  const tones: Partial<Record<Muscle, StatusTone>> = {};
+  for (const l of Object.values(state.loads)) {
+    // «Свежая» подсвечивается только у мышц, которые были в журнале: без данных фигура остаётся спокойной.
+    const t = mode === 'fatigue' ? (l.status === 'fresh' && !l.lastTrainedAt ? undefined : STATUS_TONE[l.status]) : balanceTone(l.weeklySets);
+    if (t) tones[l.muscle] = t;
+  }
   const anyData = Object.values(state.loads).some((l) => l.lastTrainedAt);
 
   return (
     <div className="chart-card">
       <div className="chart-head">
         <h3>Мышцы</h3>
-        <Segmented
-          label="Вид карты"
-          value={mode}
-          onChange={setMode}
-          options={[
-            { value: 'fatigue', label: 'Усталость' },
-            { value: 'balance', label: 'Нагрузка' },
-          ]}
-        />
+        <div className="card-title-aside">
+          <Segmented
+            label="Вид карты"
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'fatigue', label: 'Усталость' },
+              { value: 'balance', label: 'Нагрузка' },
+            ]}
+          />
+          <InfoButton open={info} onToggle={() => setInfo((o) => !o)} label="как считается" />
+        </div>
       </div>
-      <MuscleStatusMap levels={levels} sore={sore} onPick={setOpen} />
+      {info && (
+        <InfoPanel>
+          <p>
+            Усталость — по журналу: подходы с учётом близости к отказу (RPE; без него — среднее значение), спад за {state.config.recoveryHoursSmall} ч у малых групп и{' '}
+            {state.config.recoveryHoursLarge} ч у крупных. «Нагрузка» — подходы за 7 дней.
+          </p>
+          <p className="muted">Грубое правило, не измерение: если вносятся не все тренировки, «свежая» может быть неточной. Нажмите на мышцу или на её название — откроется подробно.</p>
+        </InfoPanel>
+      )}
+      <MuscleStatusMap tones={tones} sore={sore} onPick={setOpen} />
       {mode === 'fatigue' ? (
         <StatusLegend
           items={[
-            { level: 0, label: 'свежая' },
-            { level: 2, label: 'восстанавливается' },
-            { level: 3, label: 'утомлена' },
+            { tone: 'fresh', label: 'свежая' },
+            { tone: 'recovering', label: 'восстанавливается' },
+            { tone: 'fatigued', label: 'утомлена' },
           ]}
-          hatch="болит (чек-ин)"
+          hatch="болит"
         />
       ) : (
         <StatusLegend
           items={[
-            { level: 0, label: '0' },
-            { level: 1, label: 'до 4' },
-            { level: 2, label: '4–10' },
-            { level: 3, label: '10+ подходов за 7 дней' },
+            { tone: 'lvl-1', label: 'до 4' },
+            { tone: 'lvl-2', label: '4–10' },
+            { tone: 'lvl-3', label: '10+ подходов' },
           ]}
           hatch="болит"
         />
       )}
-      {state.recovering.length > 0 && mode === 'fatigue' && (
-        <p className="small">
-          Восстанавливаются:{' '}
-          {state.recovering.map((m, i) => (
-            <span key={m}>
-              {i > 0 && ', '}
-              <button type="button" className="link-btn" onClick={() => setOpen(m)}>
-                {MUSCLE_LABEL[m]}
-              </button>
-            </span>
-          ))}
-        </p>
-      )}
-      <p className="small muted">
-        {anyData
-          ? `Оценка по журналу: подходы с учётом близости к отказу (RPE; если не указан — усреднённое значение), спад за ${state.config.recoveryHoursSmall} ч (малые группы) и ${state.config.recoveryHoursLarge} ч (крупные). Пороги статусов условные. Грубое правило, не измерение: если вносятся не все тренировки, «свежая» может быть неточной.`
-          : 'В журнале за последние дни нет тренировок с подходами — все группы показаны свежими.'}
-      </p>
+      <MuscleChips tones={tones} onPick={setOpen} />
+      {!anyData && <p className="small muted">Тренировок с подходами за последние дни нет — все мышцы свежие.</p>}
       {open && <MuscleDialog muscle={open} state={state} onClose={() => setOpen(null)} />}
     </div>
   );

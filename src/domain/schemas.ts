@@ -448,6 +448,8 @@ export const supplementSchema = z
     purpose: optionalText(1000),
     notes: optionalText(2000),
     sourceUrl: url.optional(),
+    /** Время приёма «ЧЧ:ММ» по Москве (v0.10, необязательно — старые записи без него). */
+    times: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Время в формате ЧЧ:ММ')).max(6).optional(),
     ...timestamps,
   })
   .superRefine((s, ctx) => {

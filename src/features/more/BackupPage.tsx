@@ -1,6 +1,7 @@
 // Экспорт и импорт резервной копии. Импорт всегда проверяет файл целиком и требует подтверждения.
 import { useState, type ChangeEvent } from 'react';
-import { countAll, exportAll, importBackup, type ImportMode } from '../../data/repo.ts';
+import { LAST_BACKUP_KEY } from '../../data/appMeta.ts';
+import { countAll, exportAll, importBackup, setSetting, type ImportMode } from '../../data/repo.ts';
 import { backupFileName, parseBackup, type ParseBackupResult } from '../../domain/backup.ts';
 import { TABLE_LABELS, TABLE_NAMES } from '../../domain/schemas.ts';
 import { formatDateTime } from '../../domain/time.ts';
@@ -29,6 +30,7 @@ export function BackupPage() {
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 10_000);
       const total = Object.values(backup.data).reduce((s, rows) => s + rows.length, 0);
+      await setSetting(LAST_BACKUP_KEY, new Date().toISOString());
       notify(`Резервная копия сохранена: записей — ${total}`);
     } catch (e) {
       notify(`Не удалось создать копию: ${(e as Error).message}`, 'error');

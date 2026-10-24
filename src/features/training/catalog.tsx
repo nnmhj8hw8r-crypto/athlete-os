@@ -6,6 +6,7 @@ import { db } from '../../data/db.ts';
 import { saveEntity } from '../../data/repo.ts';
 import { buildCatalog, RETIRED_EXERCISES, searchCatalog, toCatalogExercise, type CatalogExercise } from '../../domain/exerciseLibrary.ts';
 import { exerciseImagePath } from '../../domain/exerciseImages.ts';
+import { exercisePhoto } from '../../domain/exercisePhotos.ts';
 import type { FieldErrors } from '../../domain/form.ts';
 import {
   EXERCISE_GROUPS,
@@ -41,9 +42,10 @@ export function useCatalogMap(): Map<string, CatalogExercise> {
 
 /** Иконка упражнения: рисунок позы Everkinetic, если он есть, иначе схема мышц (нет в каталоге — серая). */
 export function ExIcon({ ex, size }: { ex: CatalogExercise | undefined; size?: 'sm' | 'md' | 'lg' }) {
-  const src = ex ? exerciseImagePath(ex.id) : null;
+  const photo = ex && !exerciseImagePath(ex.id) ? exercisePhoto(ex.id) : null;
+  const src = ex ? (exerciseImagePath(ex.id) ?? photo?.path ?? null) : null;
   const pictogram = ex && !src && hasPictogram(ex.id) ? <Pictogram exerciseId={ex.id} primary={ex.muscles} secondary={ex.musclesSecondary} /> : undefined;
-  return <ExerciseIcon key={src ?? 'figure'} muscles={ex?.muscles ?? []} secondary={ex?.musclesSecondary} size={size} src={src} pictogram={pictogram} />;
+  return <ExerciseIcon key={src ?? 'figure'} muscles={ex?.muscles ?? []} secondary={ex?.musclesSecondary} size={size} src={src} pictogram={pictogram} photo={!!photo} />;
 }
 
 export const MUSCLE_LABEL: Record<Muscle, string> = {

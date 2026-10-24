@@ -1,4 +1,6 @@
 // Простой линейный график на SVG. Используется для массы тела и рабочих весов.
+// v0.10: всегда плавная линия (выбор пользователя), линия прорисовывается при появлении, у последней точки —
+// ореол и подпись значения; сетка тоньше, промежуточные точки — только при небольшом числе записей.
 import { useId } from 'react';
 import { linePath } from '../domain/chartPath.ts';
 import { useChartStyle } from './chartStyle.ts';
@@ -70,7 +72,7 @@ export function LineChart({ points, unit, label, reference, formatX, onPick, sel
       </title>
       {ticks.map((t) => (
         <g key={t}>
-          <line className="axis" x1={PAD.l} x2={W - PAD.r} y1={sy(t)} y2={sy(t)} opacity={0.6} />
+          <line className="axis grid" x1={PAD.l} x2={W - PAD.r} y1={sy(t)} y2={sy(t)} />
           <text x={PAD.l - 6} y={sy(t) + 4} textAnchor="end">
             {(Math.round(t * 10) / 10).toLocaleString('ru-RU')}
           </text>
@@ -91,10 +93,13 @@ export function LineChart({ points, unit, label, reference, formatX, onPick, sel
         </linearGradient>
       </defs>
       <path className="area" d={area} fill={`url(#${gradId})`} />
-      <path className="line" d={path} />
-      {points.length <= 31 &&
-        points.map((p) => <circle key={p.x} className="dot" cx={sx(p.x)} cy={sy(p.y)} r={p === last ? 4.5 : 2.5} />)}
-      {points.length > 31 && <circle className="dot" cx={sx(last.x)} cy={sy(last.y)} r={4.5} />}
+      <path className="line draw" d={path} pathLength={1} />
+      {points.length <= 14 && points.slice(0, -1).map((p) => <circle key={p.x} className="dot small" cx={sx(p.x)} cy={sy(p.y)} r={2.5} />)}
+      <circle className="dot-halo" cx={sx(last.x)} cy={sy(last.y)} r={10} />
+      <circle className="dot" cx={sx(last.x)} cy={sy(last.y)} r={4.5} />
+      <text className="last-label" x={Math.min(sx(last.x), W - PAD.r - 4)} y={Math.max(sy(last.y) - 14, PAD.t + 10)} textAnchor="end">
+        {(Math.round(last.y * 10) / 10).toLocaleString('ru-RU')}
+      </text>
       {selected !== undefined &&
         points
           .filter((p) => p.x === selected)

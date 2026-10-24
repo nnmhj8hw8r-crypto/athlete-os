@@ -8,6 +8,7 @@ import { unitLabel } from '../../domain/nutrition.ts';
 import type { Food } from '../../domain/schemas.ts';
 import { Field } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
+import { Icons } from '../../ui/icons.tsx';
 import { BarcodeScanner, cameraSupport } from './BarcodeScanner.tsx';
 import { barcodeCatalog, perekProvider, type FoodCatalogProvider, type ProviderStatus } from './catalogProvider.ts';
 import type { FoodPrefill } from './FoodFormDialog.tsx';
@@ -216,15 +217,16 @@ export function ExternalSearch({ onSelected, onManual, provider = perekProvider,
 }
 
 /** Поиск по штрихкоду: сначала свой каталог (работает офлайн), затем внешние базы по цепочке. */
-export function BarcodeLookup({ onSelected, onManual, provider = barcodeCatalog }: LookupProps) {
+export function BarcodeLookup({ onSelected, onManual, onClose, provider = barcodeCatalog }: LookupProps & { onClose?: () => void }) {
   const { notify } = useFeedback();
   const [code, setCode] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
-  const [scanning, setScanning] = useState(false);
+  const camera = cameraSupport();
+  // Нажатие «Сканирование штрихкода» сразу открывает камеру; ручной ввод — кнопкой в сканере (v0.10).
+  const [scanning, setScanning] = useState(camera.ok);
   const [result, setResult] = useState<{ ean: string; response: CatalogResponse } | null>(null);
   const [saving, setSaving] = useState(false);
-  const camera = cameraSupport();
 
   async function lookup(raw: string) {
     setError(undefined);
@@ -298,7 +300,8 @@ export function BarcodeLookup({ onSelected, onManual, provider = barcodeCatalog 
             setScanning(false);
             void lookup(ean);
           }}
-          onCancel={() => setScanning(false)}
+          onCancel={onClose ?? (() => setScanning(false))}
+          onManual={() => setScanning(false)}
         />
       ) : (
         <form
@@ -319,7 +322,7 @@ export function BarcodeLookup({ onSelected, onManual, provider = barcodeCatalog 
             </button>
             {camera.ok && (
               <button type="button" className="btn" onClick={() => setScanning(true)}>
-                Сканировать камерой
+                {Icons.camera} Сканировать камерой
               </button>
             )}
           </div>

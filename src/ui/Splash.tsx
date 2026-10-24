@@ -2,6 +2,7 @@
 // перемычка соединяет его края, затем знак «раскрывается» по линии: верхняя половина экрана уходит вверх,
 // нижняя — вниз, под ними уже загруженное приложение. ~1,4 с; нажатие пропускает; при «Уменьшении
 // движения» знак просто гаснет. Показывается один раз при открытии приложения, не при переходах.
+// v0.10: перед раскрытием знак коротко «щёлкает» (сжатие и отскок), а страница под ним приближается.
 //
 // Точность: кольцо и перемычка — один рисунок; обе половины — одинаковые полноэкранные слои с одним и тем
 // же знаком по центру, каждый обрезан ровно по середине экрана, поэтому половины совпадают до пикселя.
@@ -35,6 +36,18 @@ export function Splash() {
     const wait = phase === 'draw' ? (reduced ? REDUCED_OPEN_AT : OPEN_AT) : reduced ? REDUCED_OPEN_MS : OPEN_MS;
     const t = setTimeout(() => setPhase(phase === 'draw' ? 'open' : 'done'), wait);
     return () => clearTimeout(t);
+  }, [phase, reduced]);
+
+  // v0.10: при раскрытии страница под заставкой слегка «подъезжает» навстречу — ощущение глубины.
+  useEffect(() => {
+    if (phase !== 'open' || reduced) return;
+    const root = document.documentElement;
+    root.classList.add('app-reveal');
+    const t = setTimeout(() => root.classList.remove('app-reveal'), 700);
+    return () => {
+      clearTimeout(t);
+      root.classList.remove('app-reveal');
+    };
   }, [phase, reduced]);
 
   if (phase === 'done') return null;

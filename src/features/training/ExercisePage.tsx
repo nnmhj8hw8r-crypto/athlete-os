@@ -7,6 +7,7 @@ import { EXERCISE_NOTES_KEY, getExerciseNotes, setExerciseNote } from '../../dat
 import { EXERCISE_GROUP_LABEL, EXERCISE_METRIC_LABEL, exerciseHistory, exerciseProgress, formatClock, formatSet } from '../../domain/training.ts';
 import { formatDateKey, formatDateTime, toDateKey } from '../../domain/time.ts';
 import { EXERCISE_IMAGE_LICENSE_URL, exerciseImageCredit, exerciseImagePath } from '../../domain/exerciseImages.ts';
+import { exercisePhoto } from '../../domain/exercisePhotos.ts';
 import { ExercisePose } from '../../ui/BodyFigure.tsx';
 import { exerciseMarks, RealFigure } from '../../ui/RealFigure.tsx';
 import { useProfile } from '../onboarding/useProfile.ts';
@@ -39,6 +40,7 @@ export function ExercisePage({ route }: { route: Route }) {
     );
   }
   const pose = exerciseImagePath(ex.id);
+  const photo = pose ? null : exercisePhoto(ex.id);
   const history = workouts ? exerciseHistory(workouts, id) : [];
   const points = workouts ? exerciseProgress(workouts, id) : [];
   const chart =
@@ -69,6 +71,8 @@ export function ExercisePage({ route }: { route: Route }) {
       <div className="ex-hero">
         {pose ? (
           <ExercisePose src={pose} credit={exerciseImageCredit(ex.id)} licenseUrl={EXERCISE_IMAGE_LICENSE_URL} />
+        ) : photo ? (
+          <ExercisePose src={photo.path} credit={photo.credit} licenseUrl={photo.licenseUrl} photo />
         ) : hasPictogram(ex.id) ? (
           <ExercisePose credit="Пиктограмма приложения">
             <Pictogram exerciseId={ex.id} primary={ex.muscles} secondary={ex.musclesSecondary} />

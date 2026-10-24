@@ -6,7 +6,6 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { useState } from 'react';
 import { db } from '../../data/db.ts';
 import { setSetting } from '../../data/repo.ts';
-import type { ChartLineStyle } from '../../domain/chartPath.ts';
 import {
   DEFAULT_LAYOUT,
   normalizeLayout,
@@ -26,7 +25,6 @@ import { sumNutrients } from '../../domain/nutrition.ts';
 import { estimatedSleepMinutes, RATING_FIELDS, RATING_META, timeInBedMinutes } from '../../domain/sleep.ts';
 import { WORKOUT_FORMAT_LABEL, WORKOUT_TYPE_LABEL } from '../../domain/training.ts';
 import { formatDateKey, formatDateTime, formatDuration, toDateKey, todayKey } from '../../domain/time.ts';
-import { setChartStyle, useChartStyle } from '../../ui/chartStyle.ts';
 import { Card, Modal, Page, Segmented } from '../../ui/components.tsx';
 import { Icons } from '../../ui/icons.tsx';
 import { href, navigate } from '../../ui/router.ts';
@@ -294,7 +292,6 @@ function CustomizeDialog({
     for (const id of ids) next = updateWidget(next, id, { visible: true });
     save(next);
   };
-  const chartStyle = useChartStyle();
   // Новому пользователю (главная пуста) сначала показываем только рекомендации, полный список — по кнопке.
   const [showList, setShowList] = useState(() => shown.some((w) => w.visible) || toAdd.length === 0);
   return (
@@ -394,20 +391,6 @@ function CustomizeDialog({
             })}
           </ul>
         </>
-      )}
-      {showList && (
-        <div className="field">
-          <span className="label">Линии графиков</span>
-          <Segmented<ChartLineStyle>
-            label="Линии графиков"
-            value={chartStyle}
-            onChange={(s) => void setChartStyle(s)}
-            options={[
-              { value: 'smooth', label: 'Плавные' },
-              { value: 'straight', label: 'Прямые' },
-            ]}
-          />
-        </div>
       )}
     </Modal>
   );

@@ -22,9 +22,11 @@ export function cameraSupport(): { ok: true } | { ok: false; message: string } {
 interface Props {
   onDetected: (ean: string) => void;
   onCancel: () => void;
+  /** «Ввести код вручную» — закрыть камеру и показать поле ввода. Без него кнопка закрывает сканер. */
+  onManual?: () => void;
 }
 
-export function BarcodeScanner({ onDetected, onCancel }: Props) {
+export function BarcodeScanner({ onDetected, onCancel, onManual }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(true);
@@ -113,8 +115,8 @@ export function BarcodeScanner({ onDetected, onCancel }: Props) {
         <button type="button" className="scanner-round" onClick={onCancel} aria-label="Закрыть сканер">
           {Icons.close}
         </button>
-        <button type="button" className="scanner-pill" onClick={onCancel}>
-          Клавиатура
+        <button type="button" className="scanner-pill" onClick={onManual ?? onCancel}>
+          {Icons.keyboard} Ввести код вручную
         </button>
       </div>
       <div className="scanner-title">

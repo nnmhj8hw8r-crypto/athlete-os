@@ -1,5 +1,5 @@
 // Общие элементы интерфейса: страница, карточка, поле формы, диалог, пустое состояние.
-import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Icons } from './icons.tsx';
 import { registerModal } from './modalStack.ts';
 import { navigate } from './router.ts';
@@ -19,15 +19,37 @@ export function Page({ title, subtitle, actions, children }: { title: string; su
   );
 }
 
-export function Card({ title, aside, children }: { title?: ReactNode; aside?: ReactNode; children: ReactNode }) {
+/** Кнопка «i»: подробности прячутся за ней, чтобы на экране оставалось только главное (v0.10). */
+export function InfoButton({ open, onToggle, label }: { open: boolean; onToggle: () => void; label: string }) {
+  return (
+    <button type="button" className={`info-btn${open ? ' on' : ''}`} aria-expanded={open} aria-label={open ? `Скрыть: ${label}` : `Подробнее: ${label}`} onClick={onToggle}>
+      {open ? Icons.close : Icons.info}
+    </button>
+  );
+}
+
+/** Раскрывающаяся панель пояснений под заголовком. */
+export function InfoPanel({ children }: { children: ReactNode }) {
+  return <div className="info-panel">{children}</div>;
+}
+
+export function Card({ title, aside, info, children }: { title?: ReactNode; aside?: ReactNode; info?: ReactNode; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const label = typeof title === 'string' ? title : 'о карточке';
   return (
     <section className="card">
-      {(title || aside) && (
+      {(title || aside || info) && (
         <div className="card-title">
           {title && <h2>{title}</h2>}
-          {aside}
+          {(aside || info) && (
+            <div className="card-title-aside">
+              {aside}
+              {info && <InfoButton open={open} onToggle={() => setOpen((o) => !o)} label={label} />}
+            </div>
+          )}
         </div>
       )}
+      {info && open && <InfoPanel>{info}</InfoPanel>}
       {children}
     </section>
   );
@@ -270,20 +292,48 @@ export function RatingInput({
   onChange,
   low,
   high,
+  anchors,
+  info,
 }: {
   label: string;
   value: number | undefined;
   onChange: (v: number | undefined) => void;
-  low: string;
-  high: string;
+  low?: string;
+  high?: string;
+  /** Описание каждого значения 1…5 — показывается выбранное и в «i». */
+  anchors?: readonly string[];
+  info?: ReactNode;
 }) {
   const name = useId();
+  const [open, setOpen] = useState(false);
+  const caption = anchors
+    ? value
+      ? `${value} — ${anchors[value - 1]}`
+      : `1 — ${anchors[0]?.toLowerCase()} · 5 — ${anchors[4]?.toLowerCase()}`
+    : null;
   return (
     <div>
       <fieldset className="rating">
         <legend>
-          {label} <span className="optional muted">(необязательно)</span>
+          <span>
+            {label} <span className="optional muted">(необязательно)</span>
+          </span>
+          {(info || anchors) && <InfoButton open={open} onToggle={() => setOpen((o) => !o)} label={label} />}
         </legend>
+        {open && (
+          <InfoPanel>
+            {anchors && (
+              <ol className="anchor-list">
+                {anchors.map((a, i) => (
+                  <li key={a} className={value === i + 1 ? 'on' : undefined}>
+                    <b>{i + 1}</b> {a}
+                  </li>
+                ))}
+              </ol>
+            )}
+            {info}
+          </InfoPanel>
+        )}
         {[1, 2, 3, 4, 5].map((n) => (
           <label key={n}>
             <input
@@ -298,10 +348,16 @@ export function RatingInput({
           </label>
         ))}
       </fieldset>
-      <div className="rating-scale" aria-hidden="true">
-        <span>1 — {low}</span>
-        <span>5 — {high}</span>
-      </div>
+      {caption ? (
+        <p className={`rating-caption${value ? ' on' : ''}`} aria-live="polite">
+          {caption}
+        </p>
+      ) : (
+        <div className="rating-scale" aria-hidden="true">
+          <span>1 — {low}</span>
+          <span>5 — {high}</span>
+        </div>
+      )}
     </div>
   );
 }

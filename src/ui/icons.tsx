@@ -70,4 +70,11 @@ export const Icons: Record<string, ReactElement> = {
   arrowUp: P('M12 19V5M6 11l6-6 6 6'),
   arrowDown: P('M12 5v14M6 13l6 6 6-6'),
   copy: P('M8 8h11v12H8zM5 16V4h11'),
+  keyboard: P('M3 7h18v11H3zM7 11h.01M11 11h.01M15 11h.01M8 14.5h8'),
+  info: P('M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 8h.01'),
+  bell: P('M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0'),
+  bug: P('M9 8a3 3 0 0 1 6 0M7 10h10v5a5 5 0 0 1-10 0zM12 10v10M4 13h3M17 13h3M5 8l2 2M19 8l-2 2M5 19l2-2M19 19l-2-2'),
+  pill: P('M10.5 4.5a4.95 4.95 0 0 1 7 7l-6 6a4.95 4.95 0 0 1-7-7zM7.5 9.5l7 7'),
+  shield: P('M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6zM9 12l2 2 4-4'),
+  code: P('M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16'),
 };

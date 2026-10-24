@@ -61,7 +61,7 @@ export function SleepChart({ initial = '14', period: controlled, onPeriodChange 
           formatValue={(v) => formatDuration(Math.round(v))}
         />
       )}
-      <p className="small muted">Промежуток между «лёг» и «проснулся», а не измеренный сон.</p>
+      <p className="small muted">От «лёг» до «проснулся».</p>
     </div>
   );
 }
@@ -101,7 +101,7 @@ export function WellbeingChart({ initial = '14', period: controlled, onPeriodCha
         />
       )}
       <p className="small muted">
-        Шкала 1–5: 1 — {RATING_META[field].low}, 5 — {RATING_META[field].high}. Ваши оценки, не диагноз.
+        1 — {RATING_META[field].low}, 5 — {RATING_META[field].high}
       </p>
     </div>
   );

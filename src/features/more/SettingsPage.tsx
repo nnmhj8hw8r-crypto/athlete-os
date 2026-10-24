@@ -1,18 +1,21 @@
+// Настройки (v0.10, минималистично): режим приложения карточками, фигура, хранение данных с датой копии,
+// ссылки на «Правила и разрешения» и «Источники и лицензии». «Интернет» и вид графиков убраны (решение
+// пользователя); режим разработчика — 7 нажатий по версии, открывает раздел «Для разработчика».
 import { useEffect, useState } from 'react';
 import { APP_VERSION } from '../../appVersion.ts';
-import { APP_TIME_ZONE } from '../../config.ts';
-import type { ChartLineStyle } from '../../domain/chartPath.ts';
-import { setChartStyle, useChartStyle } from '../../ui/chartStyle.ts';
-import { Card, Page, Segmented } from '../../ui/components.tsx';
-import { useFeedback } from '../../ui/feedback.tsx';
-import { href } from '../../ui/router.ts';
-import { normalizeLayout } from '../../domain/dashboard.ts';
-import { LEVEL_LABEL, revealFullWidgets, SCENARIO_META, SEX_LABEL, type AppLevel, type Sex } from '../../domain/profile.ts';
-import { DEV_MODE_KEY, DevCard, useDevMode } from './DevCard.tsx';
+import { useLastBackup } from '../../data/appMeta.ts';
 import { db } from '../../data/db.ts';
 import { setSetting } from '../../data/repo.ts';
-import { perekProvider, type ProviderStatus } from '../nutrition/catalogProvider.ts';
+import { normalizeLayout } from '../../domain/dashboard.ts';
+import { revealFullWidgets, SCENARIO_META, SEX_LABEL, type AppLevel, type Sex } from '../../domain/profile.ts';
+import { formatDateTime } from '../../domain/time.ts';
+import { Card, Page, Segmented } from '../../ui/components.tsx';
+import { requestStorage } from '../../ui/devicePermissions.ts';
+import { useFeedback } from '../../ui/feedback.tsx';
+import { Icons } from '../../ui/icons.tsx';
+import { href, navigate } from '../../ui/router.ts';
 import { saveProfile, useProfile } from '../onboarding/useProfile.ts';
+import { DEV_MODE_KEY, useDevMode } from './DevPage.tsx';
 
 interface StorageInfo {
   supported: boolean;
@@ -20,48 +23,47 @@ interface StorageInfo {
   usageMb?: number;
 }
 
-async function readStorage(): Promise<StorageInfo> {
+export async function readStorage(): Promise<StorageInfo> {
   if (!navigator.storage?.persisted) return { supported: false };
   const [persisted, estimate] = await Promise.all([navigator.storage.persisted(), navigator.storage.estimate?.()]);
   return { supported: true, persisted, usageMb: estimate?.usage !== undefined ? estimate.usage / 1024 / 1024 : undefined };
 }
 
+const LEVELS: { value: AppLevel; title: string; text: string; icon: keyof typeof Icons }[] = [
+  { value: 'basic', title: 'Простой', text: 'Питание, сон, восстановление и тренировки', icon: 'home' },
+  { value: 'full', title: 'Полный', text: 'Плюс «Сезон»: старты, выход в вес, нагрузка', icon: 'season' },
+];
+
+const DAY = 86_400_000;
+
 export function SettingsPage() {
   const { notify } = useFeedback();
-  const chartStyle = useChartStyle();
   const profile = useProfile();
   const devMode = useDevMode();
+  const lastBackup = useLastBackup();
   const [taps, setTaps] = useState(0);
-  function tapVersion() {
-    if (devMode) return;
-    const n = taps + 1;
-    setTaps(n);
-    if (n >= 7) {
-      void setSetting(DEV_MODE_KEY, true);
-      notify('Режим разработчика включён');
-    } else if (n >= 4) notify(`До режима разработчика: ${7 - n}`);
-  }
   const [storage, setStorage] = useState<StorageInfo | null>(null);
-  const [perek, setPerek] = useState<ProviderStatus | null>(null);
-  const [online, setOnline] = useState(navigator.onLine);
 
   useEffect(() => {
     void readStorage().then(setStorage);
-    const ctrl = new AbortController();
-    perekProvider.checkAvailability(ctrl.signal).then(setPerek, () => undefined);
-    const on = () => setOnline(navigator.onLine);
-    window.addEventListener('online', on);
-    window.addEventListener('offline', on);
-    return () => {
-      ctrl.abort();
-      window.removeEventListener('online', on);
-      window.removeEventListener('offline', on);
-    };
   }, []);
 
+  function tapVersion() {
+    if (devMode) {
+      navigate('/more/dev');
+      return;
+    }
+    const n = taps + 1;
+    setTaps(n);
+    if (n >= 7) {
+      void setSetting(DEV_MODE_KEY, true).then(() => navigate('/more/dev'));
+      notify('Раздел «Для разработчика» открыт');
+    } else if (n >= 4) notify(`До раздела разработчика: ${7 - n}`);
+  }
+
   async function persist() {
-    const granted = await navigator.storage.persist();
-    notify(granted ? 'Браузер обещал не удалять данные автоматически' : 'Браузер отклонил запрос. Чаще делайте резервные копии.', granted ? 'info' : 'error');
+    const r = await requestStorage();
+    notify(r === 'granted' ? 'Браузер обещал не удалять данные' : 'Браузер отклонил запрос — чаще делайте резервные копии', r === 'granted' ? 'info' : 'error');
     setStorage(await readStorage());
   }
 
@@ -69,136 +71,99 @@ export function SettingsPage() {
     if (!profile || profile.level === level) return;
     await saveProfile({ ...profile, level });
     if (level === 'full') await setSetting('dashboardLayout', revealFullWidgets(normalizeLayout((await db.settings.get('dashboardLayout'))?.value)));
-    notify(level === 'full' ? 'Полный режим: открыт «Сезон» и карточки соревнований на главной' : 'Простой режим: разделы для соревнований скрыты, данные сохранены');
+    notify(level === 'full' ? 'Полный режим включён' : 'Простой режим: «Сезон» скрыт, данные сохранены');
   }
 
+  const backupAge = lastBackup ? Math.floor((Date.now() - Date.parse(lastBackup)) / DAY) : null;
+
   return (
-    <Page title="Настройки и о приложении" subtitle={<a href={href('/more')}>← Ещё</a>}>
+    <Page title="Настройки" subtitle={<a href={href('/more')}>← Ещё</a>}>
       {profile && (
-        <Card title="Режим приложения">
-          <Segmented<AppLevel>
-            label="Режим приложения"
-            value={profile.level}
-            onChange={(v) => void setLevel(v)}
-            options={(['basic', 'full'] as const).map((v) => ({ value: v, label: LEVEL_LABEL[v] }))}
-          />
-          <p className="small muted">
-            Простой — дневник питания со сканером, сон, восстановление и тренировки. Полный — всё для соревнующегося спортсмена: раздел «Сезон»
-            (старты, выход в вес, нагрузка по неделям) и его карточки на главной. Записи при смене режима не удаляются.
-          </p>
-          <p className="small">
-            Сценарий: <b>{SCENARIO_META[profile.scenario].title}</b> · <a href={href('/welcome')}>пройти приветствие снова</a>
-          </p>
-          <div className="field">
-            <span className="label">Фигура на схемах мышц</span>
+        <Card title="Режим">
+          <div className="level-cards" role="radiogroup" aria-label="Режим приложения">
+            {LEVELS.map((l) => (
+              <button
+                key={l.value}
+                type="button"
+                role="radio"
+                aria-checked={profile.level === l.value}
+                className={`level-card${profile.level === l.value ? ' on' : ''}`}
+                onClick={() => void setLevel(l.value)}
+              >
+                <span className="level-icon">{Icons[l.icon]}</span>
+                <b>{l.title}</b>
+                <span>{l.text}</span>
+                <span className="level-check" aria-hidden="true">
+                  {Icons.check}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="settings-row">
+            <span>Фигура мышц</span>
             <Segmented<Sex>
-              label="Пол"
+              label="Фигура мышц"
               value={profile.sex ?? 'male'}
               onChange={(v) => void saveProfile({ ...profile, sex: v })}
               options={(['male', 'female'] as const).map((v) => ({ value: v, label: SEX_LABEL[v] }))}
             />
           </div>
+          <a className="settings-link" href={href('/welcome')}>
+            <span>
+              Сценарий: <b>{SCENARIO_META[profile.scenario].title}</b>
+            </span>
+            <span className="muted">Изменить {Icons.chevronRight}</span>
+          </a>
         </Card>
       )}
-      {devMode && <DevCard profile={profile} />}
-      <Card title="О приложении">
-        <ul className="list small">
-          <li>Время и даты — по Москве ({APP_TIME_ZONE})</li>
-          <li onClick={tapVersion}>Версия: {APP_VERSION} (демо){devMode && ' · режим разработчика'}</li>
-        </ul>
-      </Card>
 
-      <Card title="Хранение данных">
-        {storage === null ? (
-          <p className="muted">Проверка…</p>
-        ) : !storage.supported ? (
-          <p className="muted">Браузер не сообщает сведений о хранилище.</p>
-        ) : (
-          <>
-            <p>
-              Защита от автоудаления: <b>{storage.persisted ? 'включена' : 'не включена'}</b>
-              {storage.usageMb !== undefined && <span className="muted"> · занято ≈ {storage.usageMb.toFixed(1)} МБ</span>}
-            </p>
-            {!storage.persisted && (
-              <button type="button" className="btn" onClick={persist}>
-                Попросить браузер не удалять данные
+      <Card title="Данные">
+        <a className="settings-link" href={href('/more/backup')}>
+          <span>
+            Резервная копия
+            <small className={backupAge === null || backupAge > 7 ? 'warn-text' : 'muted'}>
+              {lastBackup === undefined ? '…' : lastBackup === null ? 'ещё не делали' : `${formatDateTime(lastBackup)}${backupAge! > 7 ? ' — пора обновить' : ''}`}
+            </small>
+          </span>
+          <span className="muted">{Icons.chevronRight}</span>
+        </a>
+        {storage?.supported && (
+          <div className="settings-row">
+            <span>
+              Защита от удаления
+              <small className="muted">{storage.usageMb !== undefined && `занято ≈ ${storage.usageMb.toFixed(1)} МБ`}</small>
+            </span>
+            {storage.persisted ? (
+              <span className="perm-ok">{Icons.check}</span>
+            ) : (
+              <button type="button" className="btn small" onClick={() => void persist()}>
+                Включить
               </button>
             )}
-          </>
+          </div>
         )}
-        <p className="small muted">
-          Safari может удалить данные сайта, который давно не открывался. Добавьте приложение на экран «Домой» и регулярно
-          делайте <a href={href('/more/backup')}>резервную копию</a>.
-        </p>
       </Card>
 
-      <Card title="Интернет">
-        <p>{online ? 'Подключение есть' : 'Подключения нет — дневники работают и без интернета'}</p>
-        <p>
-          Поиск продуктов по названию:{' '}
-          {perek === null ? (
-            'проверка…'
-          ) : perek.available ? (
-            <b>есть</b>
-          ) : (
-            <span className="muted">пока недоступен — ищите по штрихкоду или добавьте свой продукт</span>
-          )}
-        </p>
-        <p className="small muted">Штрихкоды ищутся в открытой базе Open Food Facts. Ваши записи никуда не отправляются.</p>
+      <Card>
+        <a className="settings-link" href={href('/more/permissions')}>
+          <span>Правила и разрешения</span>
+          <span className="muted">{Icons.chevronRight}</span>
+        </a>
+        <a className="settings-link" href={href('/more/licenses')}>
+          <span>Источники и лицензии</span>
+          <span className="muted">{Icons.chevronRight}</span>
+        </a>
+        {devMode && (
+          <a className="settings-link" href={href('/more/dev')}>
+            <span>Для разработчика</span>
+            <span className="muted">{Icons.chevronRight}</span>
+          </a>
+        )}
       </Card>
 
-      <Card title="Вид">
-        <div className="field">
-          <span className="label">Линии графиков</span>
-          <Segmented<ChartLineStyle>
-            label="Линии графиков"
-            value={chartStyle}
-            onChange={(v) => void setChartStyle(v)}
-            options={[
-              { value: 'smooth', label: 'Плавные' },
-              { value: 'straight', label: 'Прямые' },
-            ]}
-          />
-        </div>
-        <p className="small muted">Тема — светлая или тёмная — следует настройке телефона.</p>
-      </Card>
-
-      <Card title="Источники данных и лицензии">
-        <ul className="sources">
-          <li>Реалистичные анатомические фигуры (мужская и женская) — изображения, предоставленные автором приложения; женская собрана зеркально из половины фигуры, подписи убраны.</li>
-          <li>
-            Рисунки упражнений — <a href="https://github.com/everkinetic/data" target="_blank" rel="noreferrer">Everkinetic</a>{' '}
-            (Greg Priday),{' '}
-            <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.ru" target="_blank" rel="noreferrer">
-              CC BY-SA 4.0
-            </a>
-            . Изменения: переименованы файлы, убраны фиксированные размеры.
-          </li>
-          <li>
-            Анатомическая схема мышц — Termininja (
-            <a href="https://commons.wikimedia.org/wiki/File:Muscular_system.svg" target="_blank" rel="noreferrer">
-              Wikimedia Commons
-            </a>
-            ) через проект{' '}
-            <a href="https://github.com/wger-project/wger" target="_blank" rel="noreferrer">
-              wger
-            </a>
-            ,{' '}
-            <a href="https://creativecommons.org/licenses/by-sa/3.0/deed.ru" target="_blank" rel="noreferrer">
-              CC BY-SA 3.0
-            </a>
-            . Изменён цвет слоёв мышц. Пиктограммы кардио — собственные рисунки приложения.
-          </li>
-          <li>
-            Встроенный справочник продуктов — <a href="https://fdc.nal.usda.gov" target="_blank" rel="noreferrer">USDA FoodData Central</a>{' '}
-            (общественное достояние, CC0).
-          </li>
-          <li>
-            Офлайн-база российских товаров и поиск по штрихкоду — <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer">Open Food Facts</a>{' '}
-            (ODbL 1.0).
-          </li>
-        </ul>
-      </Card>
+      <button type="button" className="version-line" onClick={tapVersion}>
+        Personal Athlete OS {APP_VERSION} · демо
+      </button>
     </Page>
   );
 }

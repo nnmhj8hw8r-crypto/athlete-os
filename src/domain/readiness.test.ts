@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { CHECKIN_SCALES } from './checkinScales.ts';
 import {
   adviceLine,
   computeReadiness,
   DEFAULT_READINESS_CONFIG,
   describeFactor,
+  personalScale,
   explain,
   median,
   normalizeReadinessConfig,
@@ -88,5 +90,20 @@ describe('готовность', () => {
     expect(adviceLine(65, ['lats'])).toBe('Умеренная нагрузка, широчайшие ещё восстанавливается.');
     expect(adviceLine(85, [])).toBe('Можно тренироваться в полную силу.');
     expect(readinessBand(30).level).toBe('rest');
+  });
+});
+
+describe('свой разброс и шкалы чек-ина (v0.10)', () => {
+  it('разброс ограничен половиной и двойным стартовым шагом', () => {
+    expect(personalScale([7, 7, 7, 7], 1)).toBe(0.5);
+    expect(personalScale([3, 9, 4, 10, 2, 8], 1)).toBe(2);
+    expect(personalScale([7, 8], 1)).toBe(1);
+    expect(personalScale([6.5, 7.5, 7, 8, 6], 1)).toBeCloseTo(0.79, 2);
+  });
+  it('у каждой шкалы пять словесных описаний', () => {
+    for (const def of Object.values(CHECKIN_SCALES)) {
+      expect(def.anchors).toHaveLength(5);
+      expect(new Set(def.anchors).size).toBe(5);
+    }
   });
 });

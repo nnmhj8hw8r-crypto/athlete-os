@@ -892,11 +892,15 @@ html { scroll-behavior: smooth; }
 .status-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.8rem; color: var(--muted); }
 .status-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .status-legend .sw { width: 16px; height: 16px; border-radius: 5px; border: 1px solid var(--border); display: inline-block; }
-.status-legend .sw.lvl-0 { background: #f2f2f4; }
-.status-legend .sw.lvl-1 { background: #c9c9c9; }
-.status-legend .sw.lvl-2 { background: #8f8f8f; }
-.status-legend .sw.lvl-3 { background: #2a2a2e; }
-.status-legend .sw.hatch { background: var(--sore); border-color: var(--sore); }
+.status-legend .sw { border: 0; }
+.status-legend .sw.lvl-0 { background: #b9b9bf; }
+.status-legend .sw.lvl-1 { background: rgb(120 175 255); }
+.status-legend .sw.lvl-2 { background: rgb(45 120 245); }
+.status-legend .sw.lvl-3 { background: rgb(20 60 190); }
+.status-legend .sw.fresh { background: rgb(52 199 89); }
+.status-legend .sw.recovering { background: rgb(255 196 0); }
+.status-legend .sw.fatigued { background: rgb(255 112 0); }
+.status-legend .sw.hatch { background: repeating-linear-gradient(45deg, rgb(235 35 45) 0 3px, rgb(235 35 45 / 0.45) 3px 6px); }
 .status-ell-sore { fill: var(--sore); opacity: 0.88; }
 :root { --sore: #e5484d; }
 
@@ -1144,18 +1148,171 @@ dialog.scanner-full::backdrop { background: #05070d; }
 .trends-table th[scope='row'] { text-align: left; font-weight: 600; }
 .trends-table td.num { white-space: nowrap; }
 
-/* Реалистичная фигура (v0.9.4): серая основа, мышцы — цветом иллюстрации, «болит» — красным */
-.real-figure { display: flex; justify-content: center; align-items: flex-end; gap: 6px; padding: 10px; border-radius: var(--radius); background: #fff; }
+/* Реалистичная фигура (v0.9.4, v0.10 — canvas с точной разметкой и прозрачным фоном) */
+.real-figure { display: flex; justify-content: center; align-items: flex-end; gap: 10px; padding: 8px 4px; border-radius: var(--radius); background: transparent; }
 .real-view { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .real-canvas { position: relative; display: block; height: 300px; }
-.real-canvas.clickable { cursor: pointer; }
-.real-canvas img, .real-canvas svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.real-base { filter: grayscale(1) contrast(0.85) brightness(1.12); user-select: none; -webkit-user-drag: none; }
-.real-tone.secondary { opacity: 0.5; }
-.real-tone.primary { filter: saturate(1.35) contrast(1.05); }
-.real-tone.lvl-1 { fill: #000; opacity: 0.14; }
-.real-tone.lvl-2 { fill: #000; opacity: 0.3; }
-.real-tone.lvl-3 { fill: #000; opacity: 0.5; }
-.real-tone.sore { fill: var(--sore); opacity: 0.78; }
-.real-caption { font-size: 0.75rem; color: #6b6b73; }
-.ex-real .real-canvas, .status-real .real-canvas { height: min(300px, 68vw); }
+.real-canvas canvas, .real-canvas img { position: absolute; inset: 0; width: 100%; height: 100%; user-select: none; -webkit-user-drag: none; -webkit-tap-highlight-color: transparent; }
+.real-canvas canvas.clickable { cursor: pointer; touch-action: manipulation; }
+.real-base { filter: grayscale(1) contrast(0.85) brightness(1.12); }
+.real-caption { font-size: 0.75rem; color: var(--muted); }
+.ex-real .real-canvas, .status-real .real-canvas { height: min(320px, 72vw); }
+
+/* v0.10: кнопка «i» и панель пояснений — подробности по запросу, а не на экране */
+.card-title-aside { display: flex; align-items: center; gap: 8px; }
+.info-btn {
+  inline-size: 30px; block-size: 30px; flex: none; display: inline-grid; place-items: center;
+  border-radius: 50%; border: 1px solid var(--border); background: transparent; color: var(--muted);
+  padding: 0; cursor: pointer; transition: background-color 160ms ease, color 160ms ease, transform 120ms ease;
+}
+.info-btn svg { inline-size: 17px; block-size: 17px; }
+.info-btn:active { transform: scale(0.94); }
+.info-btn.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.info-panel {
+  border-radius: 16px; background: var(--surface-2, rgba(127, 127, 127, 0.1)); padding: 12px 14px; margin: 4px 0 10px;
+  font-size: 0.88rem; line-height: 1.45; color: var(--text); animation: info-in 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.info-panel p { margin: 0 0 6px; }
+.info-panel p:last-child { margin-bottom: 0; }
+.info-panel .muted { color: var(--muted); }
+@keyframes info-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.rating { flex-wrap: wrap; }
+.rating legend { display: flex; justify-content: space-between; align-items: center; inline-size: 100%; }
+.rating .info-panel { flex-basis: 100%; }
+.rating label { flex: 1 1 0; }
+.rating-caption { margin: 6px 0 0; font-size: 0.85rem; color: var(--muted); min-block-size: 1.3em; }
+.rating-caption.on { color: var(--text); font-weight: 600; }
+.anchor-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
+.anchor-list li { display: flex; gap: 10px; color: var(--muted); }
+.anchor-list li b { inline-size: 1.2em; color: var(--text); }
+.anchor-list li.on { color: var(--text); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .info-panel { animation: none; } }
+.muscle-chips { margin-top: 10px; }
+.muscle-chips .chip { display: inline-flex; align-items: center; gap: 6px; }
+.muscle-chips .sw { inline-size: 10px; block-size: 10px; border-radius: 50%; display: inline-block; flex: none; }
+.muscle-chips .sw.fresh { background: rgb(52 199 89); }
+.muscle-chips .sw.recovering { background: rgb(255 196 0); }
+.muscle-chips .sw.fatigued { background: rgb(255 112 0); }
+.muscle-chips .sw.lvl-1 { background: rgb(120 175 255); }
+.muscle-chips .sw.lvl-2 { background: rgb(45 120 245); }
+.muscle-chips .sw.lvl-3 { background: rgb(20 60 190); }
+.calib-dots { display: flex; gap: 6px; margin: 4px 0; }
+.calib-dots span { flex: 1; block-size: 8px; border-radius: 999px; background: var(--surface-2); transition: background-color 300ms ease; }
+.calib-dots span.on { background: var(--text); }
+
+/* v0.10: настройки — карточки режима, строки, ссылки, версия */
+.level-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.level-card {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left;
+  padding: 14px; border-radius: var(--radius-sm); border: 1.5px solid var(--border); background: transparent; color: var(--text);
+  font: inherit; cursor: pointer; transition: border-color 180ms ease, background-color 180ms ease, transform 120ms ease;
+}
+.level-card:active { transform: scale(0.98); }
+.level-card span:not(.level-icon):not(.level-check) { font-size: 0.8rem; color: var(--muted); line-height: 1.3; }
+.level-card.on { border-color: var(--text); background: var(--surface-2); }
+.level-icon svg { inline-size: 22px; block-size: 22px; }
+.level-check { position: absolute; inset-block-start: 10px; inset-inline-end: 10px; inline-size: 22px; block-size: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--text); color: var(--bg); opacity: 0; transform: scale(0.6); transition: opacity 180ms ease, transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1); }
+.level-check svg { inline-size: 14px; block-size: 14px; }
+.level-card.on .level-check { opacity: 1; transform: none; }
+.settings-row, .settings-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-block-size: 48px; padding-block: 6px; border-top: 1px solid var(--border); }
+.settings-row:first-child, .settings-link:first-child { border-top: 0; }
+.level-cards + .settings-row { margin-top: 10px; }
+.settings-link { color: inherit; text-decoration: none; }
+.settings-link svg { inline-size: 16px; block-size: 16px; vertical-align: -3px; }
+.settings-row > span, .settings-link > span:first-child { display: flex; flex-direction: column; }
+.settings-row small, .settings-link small { font-size: 0.8rem; }
+.warn-text { color: var(--warning); }
+.perm-ok { inline-size: 28px; block-size: 28px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--success-soft); color: var(--success); }
+.perm-ok svg { inline-size: 16px; block-size: 16px; }
+.version-line { display: block; margin: 8px auto 24px; padding: 10px 16px; border: 0; background: none; color: var(--muted); font: inherit; font-size: 0.8rem; cursor: default; -webkit-tap-highlight-color: transparent; }
+.perm-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px; }
+.perm-row .grow { display: flex; flex-direction: column; gap: 2px; min-inline-size: 0; }
+.perm-row .title { font-weight: 600; }
+.perm-row .meta { font-size: 0.85rem; color: var(--muted); }
+.perm-side { display: flex; align-items: center; gap: 8px; flex: none; }
+.terms { display: flex; flex-direction: column; gap: 10px; }
+.dev-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dev-actions .btn { min-height: 48px; padding-inline: 10px; font-size: 0.9rem; line-height: 1.2; white-space: normal; }
+.dev-table { margin: 0; display: grid; gap: 0; }
+.dev-table div { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 0.9rem; }
+.dev-table div:first-child { border-top: 0; }
+.dev-table dt { color: var(--muted); }
+.dev-table dd { margin: 0; text-align: right; }
+
+/* v0.10: добавки — список на сегодня с отметками */
+.dose-progress { block-size: 6px; border-radius: 999px; background: var(--surface-2); overflow: hidden; margin: 2px 0 8px; }
+.dose-progress span { display: block; block-size: 100%; background: var(--success); border-radius: inherit; transition: width 300ms cubic-bezier(0.23, 1, 0.32, 1); }
+.dose-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.dose {
+  inline-size: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer;
+  transition: background-color 180ms ease, border-color 180ms ease, transform 120ms ease;
+}
+.dose:active { transform: scale(0.98); }
+.dose .grow { flex: 1; min-inline-size: 0; display: flex; flex-direction: column; }
+.dose-time { min-inline-size: 3.2em; font-weight: 700; }
+.dose-check { inline-size: 28px; block-size: 28px; border-radius: 50%; border: 1.5px solid var(--border); display: grid; place-items: center; color: transparent; transition: all 200ms ease; flex: none; }
+.dose-check svg { inline-size: 16px; block-size: 16px; }
+.dose.on { background: var(--success-soft); border-color: transparent; }
+.dose.on b { text-decoration: line-through; text-decoration-color: var(--muted); }
+.dose.on .dose-check { background: var(--success); border-color: var(--success); color: #fff; }
+.list-item.faded { opacity: 0.55; }
+.stack-sm { display: flex; flex-direction: column; gap: 8px; }
+.time-input { max-inline-size: 140px; }
+
+/* v0.10: «Мои замеры» — кружок добавить/убрать, порядок стрелками */
+.pin-circle { inline-size: 40px; block-size: 40px; flex: none; border-radius: 50%; border: 1.5px solid var(--border); display: grid; place-items: center; background: transparent; color: var(--muted); cursor: pointer; transition: background-color 180ms ease, color 180ms ease, border-color 180ms ease, transform 120ms ease; }
+.pin-circle svg { inline-size: 18px; block-size: 18px; }
+.pin-circle:active { transform: scale(0.9); }
+.pin-circle.on { background: var(--text); border-color: var(--text); color: var(--bg); }
+.order-btns { display: flex; gap: 2px; flex: none; }
+.order-btns .icon-btn:disabled { opacity: 0.3; }
+.my-measures { margin-bottom: 8px; }
+
+/* v0.10: полоса недели — минималистично (образец пользователя, скрин 3) */
+.week-head { display: flex; align-items: center; justify-content: space-between; }
+.week-range { font-weight: 600; font-size: 0.95rem; }
+.week-days-min { gap: 0; }
+.week-days-min .week-day.plan-day, .week-days-min .week-day.plan-day.selected { background: none; border-color: transparent; padding: 4px 0; gap: 6px; }
+.week-days-min .wd-circle { inline-size: 40px; block-size: 40px; border: 0; background: transparent; font-weight: 600; transition: background-color 200ms ease, color 200ms ease, transform 160ms ease; }
+.week-days-min .wd-circle.wd-planned { box-shadow: inset 0 0 0 1.5px var(--border); }
+.week-days-min .wd-circle.wd-partial { background: color-mix(in srgb, var(--success) 22%, transparent); }
+.week-days-min .wd-circle.wd-done { background: color-mix(in srgb, var(--success) 85%, transparent); color: #fff; }
+.week-days-min .week-day.today .wd-circle { box-shadow: none; color: var(--text); font-weight: 800; }
+.week-days-min .week-day.today .wd-name::after { content: ""; display: block; inline-size: 4px; block-size: 4px; margin: 2px auto 0; border-radius: 50%; background: currentColor; }
+.week-days-min .week-day.selected .wd-circle { background: var(--text); color: var(--bg); transform: scale(1.04); }
+.week-days-min .wd-slots i { background: transparent; }
+.week-days-min .wd-slots i.planned { background: var(--muted); }
+.week-days-min .wd-slots i.done { background: var(--success); }
+
+/* v0.10: заставка — «щелчок» знака перед раскрытием и приближение страницы */
+.splash-mark { animation: splash-tick 0.26s cubic-bezier(0.34, 1.56, 0.64, 1) 0.7s both; }
+@keyframes splash-tick { 0% { transform: translate(-50%, -50%) scale(1); } 40% { transform: translate(-50%, -50%) scale(0.9); } 100% { transform: translate(-50%, -50%) scale(1); } }
+.app-reveal .page { animation: app-reveal 0.6s cubic-bezier(0.23, 1, 0.32, 1) both; }
+@keyframes app-reveal { from { transform: scale(0.94); opacity: 0.4; } to { transform: none; opacity: 1; } }
+
+/* v0.10: приветствие — знак рисуется, пункты появляются по очереди */
+.onb-mark { inline-size: 64px; block-size: 64px; overflow: visible; margin-bottom: 4px; }
+.onb-mark-ring { fill: none; stroke: var(--text); stroke-width: 10; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; transform-box: fill-box; transform-origin: center; animation: splash-ring 0.8s cubic-bezier(0.23, 1, 0.32, 1) 0.1s forwards; }
+.onb-mark-bar { fill: var(--text); transform-box: fill-box; transform-origin: center; transform: scaleX(0); animation: splash-bar 0.35s cubic-bezier(0.23, 1, 0.32, 1) 0.65s forwards; }
+.onb-body > * { animation: onb-up 0.5s cubic-bezier(0.23, 1, 0.32, 1) both; }
+.onb-body > *:nth-child(2) { animation-delay: 60ms; } .onb-body > *:nth-child(3) { animation-delay: 120ms; } .onb-body > *:nth-child(4) { animation-delay: 180ms; } .onb-body > *:nth-child(n+5) { animation-delay: 240ms; }
+.onb-stagger > li { animation: onb-up 0.5s cubic-bezier(0.23, 1, 0.32, 1) both; }
+.onb-stagger > li:nth-child(1) { animation-delay: 200ms; } .onb-stagger > li:nth-child(2) { animation-delay: 260ms; } .onb-stagger > li:nth-child(3) { animation-delay: 320ms; } .onb-stagger > li:nth-child(4) { animation-delay: 380ms; } .onb-stagger > li:nth-child(5) { animation-delay: 440ms; }
+@keyframes onb-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.onb-choice { transition: transform 160ms ease, border-color 160ms ease; } .onb-choice:active { transform: scale(0.98); }
+.onb-dots span { transition: background-color 0.3s var(--ease), inline-size 0.3s var(--ease); } .onb-dots span.on:last-of-type { inline-size: 30px; }
+@media (prefers-reduced-motion: reduce) { .splash-mark, .app-reveal .page, .onb-body > *, .onb-stagger > li { animation: none; } .onb-mark-ring { animation: none; stroke-dashoffset: 0; } .onb-mark-bar { animation: none; transform: none; } }
+
+/* v0.10: фото упражнений (Wikimedia Commons) — заполняют рамку целиком */
+.ex-icon.pose.photo img { width: 100%; height: 100%; object-fit: cover; }
+.ex-pose.photo img { padding: 0; object-fit: cover; object-position: center 15%; aspect-ratio: 4 / 3; max-width: 340px; background: var(--surface-2); }
+
+/* v0.10: графики — тонкая пунктирная сетка, прорисовка линии, ореол последней точки */
+.chart .axis.grid { stroke-dasharray: 2 6; opacity: 0.5; }
+.chart .line.draw { stroke-dasharray: 1; stroke-dashoffset: 1; animation: chart-draw 0.9s cubic-bezier(0.23, 1, 0.32, 1) 0.05s forwards; }
+@keyframes chart-draw { to { stroke-dashoffset: 0; } }
+.chart .dot-halo { fill: var(--text); opacity: 0.14; }
+.chart .dot.small { opacity: 0.55; }
+.chart .last-label { font-weight: 700; fill: var(--text); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { .chart .line.draw { animation: none; stroke-dasharray: none; stroke-dashoffset: 0; } }

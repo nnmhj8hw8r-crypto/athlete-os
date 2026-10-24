@@ -46,7 +46,7 @@ export function ReadinessHistory({ state }: { state: ReadinessState }) {
       {points.length >= 2 ? (
         <LineChart label="Готовность" unit="" points={points} formatX={(x) => dayLabel(new Date(x).toISOString().slice(0, 10))} onPick={(x) => pick(new Date(x).toISOString().slice(0, 10))} selected={day ? noon(day) : undefined} />
       ) : (
-        <p className="muted small">{points.length ? 'Пока одна оценка — график появится со второй.' : 'Оценок за период нет: идёт калибровка или не было чек-инов.'}</p>
+        <p className="muted small">{points.length ? 'График появится со второй оценки.' : 'Оценок пока нет.'}</p>
       )}
       <h4 className="chart-sub">Сон, часов</h4>
       <BarChart
@@ -64,7 +64,6 @@ export function ReadinessHistory({ state }: { state: ReadinessState }) {
         onPick={pick}
         selected={day ?? undefined}
       />
-      <p className="small muted">Нажмите на день, чтобы увидеть записи. Оценка по вашим записям, не медицинская рекомендация.</p>
       {day && <DayDialog date={day} state={state} score={scores[dates.indexOf(day)] ?? null} onClose={() => setDay(null)} />}
     </div>
   );

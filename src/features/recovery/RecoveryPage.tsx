@@ -39,7 +39,7 @@ export function RecoveryPage({ route }: { route: Route }) {
   }, [route]);
 
   return (
-    <Page title="Восстановление" subtitle="Готовность к тренировке, мышцы и сон">
+    <Page title="Восстановление">
       {readiness ? (
         <>
           <ReadinessCard state={readiness} onCheckin={() => setCheckinOpen(true)} onSettings={() => setSettingsOpen(true)} />
@@ -123,10 +123,18 @@ function Trends({ entries }: { entries: SleepEntry[] }) {
     ...RATING_FIELDS.map((k) => ({ label: RATING_META[k].label, a: fmt(last[k], 'score'), b: fmt(prev[k], 'score'), d: diff(last[k], prev[k], 'score') })),
   ];
   return (
-    <Card title="Тенденции">
-      <p className="small muted">
-        Средние значения: последние {last.count} {nightsWord(last.count)} и {prev.count ? `${prev.count} ${nightsWord(prev.count)} до них` : 'ночи до них (пока нет записей)'}.
-      </p>
+    <Card
+      title="Тенденции"
+      info={
+        <>
+          <p>
+            «Сейчас» — средние за последние {last.count} {nightsWord(last.count)}, «Раньше» — за {prev.count ? `${prev.count} ${nightsWord(prev.count)} до них` : 'ночи до них (записей пока нет)'}. Оценки — ваши
+            отметки от 1 до 5.
+          </p>
+          <p className="muted">Это описание, а не диагноз: одна-две записи не говорят о перетренированности, а совпадение двух показателей не доказывает причину.</p>
+        </>
+      }
+    >
       <table className="set-table trends-table">
         <thead>
           <tr>
@@ -147,10 +155,6 @@ function Trends({ entries }: { entries: SleepEntry[] }) {
           ))}
         </tbody>
       </table>
-      <p className="small muted">
-        «Сейчас» — последние до 7 записей сна, «Раньше» — 7 записей перед ними. Оценки — ваши отметки от 1 до 5. Это описание, а не
-        диагноз: одна-две записи не говорят о перетренированности, а совпадение двух показателей не доказывает причину.
-      </p>
     </Card>
   );
 }

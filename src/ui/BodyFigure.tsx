@@ -104,17 +104,20 @@ export function ExerciseIcon({
   size = 'md',
   src,
   pictogram,
+  photo,
 }: {
   muscles: readonly Muscle[];
   secondary?: readonly Muscle[];
   size?: 'sm' | 'md' | 'lg';
   src?: string | null;
   pictogram?: ReactNode;
+  /** src — фото (v0.10): заполняет круг целиком. */
+  photo?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const showImage = !!src && !failed;
   return (
-    <span className={`ex-icon ${size}${showImage || pictogram ? ' pose' : ' anatomy'}`} aria-hidden="true">
+    <span className={`ex-icon ${size}${showImage || pictogram ? ' pose' : ' anatomy'}${showImage && photo ? ' photo' : ''}`} aria-hidden="true">
       {showImage ? (
         <img src={`${import.meta.env.BASE_URL}${src}`} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
       ) : pictogram ? (
@@ -127,9 +130,9 @@ export function ExerciseIcon({
 }
 
 /** Крупный рисунок позы упражнения с подписью об источнике (страница упражнения, «Техника»). */
-export function ExercisePose({ src, children, credit, licenseUrl }: { src?: string; children?: ReactNode; credit: string; licenseUrl?: string }) {
+export function ExercisePose({ src, children, credit, licenseUrl, photo }: { src?: string; children?: ReactNode; credit: string; licenseUrl?: string; photo?: boolean }) {
   return (
-    <figure className="ex-pose">
+    <figure className={`ex-pose${photo ? ' photo' : ''}`}>
       {src ? <img src={`${import.meta.env.BASE_URL}${src}`} alt="Как выполняется упражнение" decoding="async" /> : <span className="ex-pose-art">{children}</span>}
       <figcaption>
         {credit}

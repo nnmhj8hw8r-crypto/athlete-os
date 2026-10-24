@@ -1,7 +1,7 @@
 // Оценка готовности к тренировке 0–100 относительно ЛИЧНОЙ нормы пользователя (v0.8).
 //
 // Личная норма показателя — медиана последних (до 28) значений из прошлых чек-инов. Каждый показатель
-// переводится в 0–100: на уровне нормы — 70, каждое «типичное отклонение» (scale) в лучшую сторону +30,
+// переводится в 0–100: на уровне нормы — 70, каждое «типичное отклонение» (свой разброс, см. personalScale) в лучшую сторону +30,
 // в худшую −30, с ограничением 0–100. Показатели собраны в 4 компонента со стартовыми весами
 // (сон 30%, энергия/настроение/стресс 25%, мышечная боль 25%, пульс покоя/HRV 20%). Компонент без данных
 // выпадает, его вес распределяется на остальные. Пока прошлых чек-инов меньше M (по умолчанию 7) —
@@ -87,6 +87,20 @@ export function median(values: readonly number[]): number | null {
   return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
 }
 
+/**
+ * «Типичное отклонение» с учётом своей изменчивости (v0.10): стандартное отклонение своих прошлых значений,
+ * но не меньше половины и не больше двойного стартового шага. У кого показатель обычно стабилен, заметнее
+ * небольшой сдвиг; у кого он «скачет», один плохой день весит меньше. Это эвристика приложения, а не формула
+ * из литературы; общий принцип — оценивать изменения относительно индивидуальной нормы (обзоры мониторинга,
+ * например Bourdon и соавт., 2017, PMID 28463642).
+ */
+export function personalScale(values: readonly number[], base: number): number {
+  if (values.length < 3) return base;
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const sd = Math.sqrt(values.reduce((a, b) => a + (b - mean) ** 2, 0) / (values.length - 1));
+  return Math.min(base * 2, Math.max(base / 2, sd));
+}
+
 export interface Factor {
   metric: MetricId;
   value: number;
@@ -127,8 +141,9 @@ export function computeReadiness(checkins: readonly Checkin[], date: string, con
     });
     // Норма показателя — только если у него самого достаточно прошлых значений.
     if (history.length < config.calibrationDays) continue;
-    const norm = median(history.slice(0, NORM_WINDOW))!;
-    const impact = (def.dir * (value - norm)) / def.scale;
+    const window = history.slice(0, NORM_WINDOW);
+    const norm = median(window)!;
+    const impact = (def.dir * (value - norm)) / personalScale(window, def.scale);
     factors.push({ metric: id, value, norm, impact });
     (byComponent[def.component] ??= []).push(Math.min(100, Math.max(0, 70 + 30 * impact)));
   }

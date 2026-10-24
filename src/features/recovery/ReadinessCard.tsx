@@ -1,21 +1,55 @@
 // Главный блок «Восстановления» (v0.8, по мотивам Athlytic / Bevel / NOOP): статус, крупное число 0–100
 // и полоса, «Что влияет», объяснение, совет на сегодня с действиями. Пока норма не изучена — «Калибровка».
 import { adviceLine, COMPONENT_LABEL, describeFactor, explain, readinessBand } from '../../domain/readiness.ts';
+import { useState, type ReactNode } from 'react';
+import { InfoButton, InfoPanel } from '../../ui/components.tsx';
 import { Icons } from '../../ui/icons.tsx';
 import { href } from '../../ui/router.ts';
 import type { ReadinessState } from './useReadiness.ts';
 
 export const NOT_MEDICAL = 'Оценка по вашим записям относительно вашей нормы. Не медицинская рекомендация.';
 
+/** Заголовок карточки с кнопкой «i»: подробности — по запросу (v0.10). */
+function Head({ label, info }: { label: string; info: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <div className="row-between">
+        <span className="hero-label">{label}</span>
+        <InfoButton open={open} onToggle={() => setOpen((o) => !o)} label="как считается готовность" />
+      </div>
+      {open && <InfoPanel>{info}</InfoPanel>}
+    </>
+  );
+}
+
+const HOW = (calibrationDays: number) => (
+  <>
+    <p>
+      Оценка 0–100 — сравнение утреннего чек-ина с вашей личной нормой: медианой последних 28 записей и вашим обычным разбросом. На уровне нормы — 70.
+    </p>
+    <p>
+      Первые {calibrationDays} дней идёт калибровка: приложение изучает, какие значения обычны именно для вас. Отвечайте честно и примерно в одно время — утром, до
+      тренировки.
+    </p>
+    <p className="muted">
+      Субъективные оценки самочувствия хорошо отражают реакцию на нагрузку (Saw и соавт., 2016); обзоры мониторинга советуют оценивать изменения
+      относительно своей нормы (Bourdon и соавт., 2017). Описания шкал — свои, это не валидированный опросник; учёт разброса и границы статусов
+      80 / 60 / 40 — стартовые настройки приложения. {NOT_MEDICAL}
+    </p>
+  </>
+);
+
 export function ReadinessCard({ state, onCheckin, onSettings }: { state: ReadinessState; onCheckin: () => void; onSettings: () => void }) {
   const r = state.result;
+  const how = HOW(state.config.calibrationDays);
 
   if (r.kind === 'no-checkin') {
     return (
       <section className="hero-card readiness">
-        <span className="hero-label">Готовность сегодня</span>
+        <Head label="Готовность сегодня" info={how} />
         <b className="readiness-title">Утренний чек-ин</b>
-        <span className="muted">Сон, самочувствие и мышцы — до 30 секунд. После этого появится оценка и совет на день.</span>
+        <span className="muted">30 секунд: сон, самочувствие, мышцы.</span>
         <button type="button" className="btn primary big" onClick={onCheckin}>
           Пройти чек-ин
         </button>
@@ -24,17 +58,17 @@ export function ReadinessCard({ state, onCheckin, onSettings }: { state: Readine
   }
 
   if (r.kind === 'calibrating') {
-    const pct = Math.round((r.have / r.need) * 100);
     return (
       <section className="hero-card readiness">
-        <span className="hero-label">Готовность сегодня</span>
-        <b className="readiness-title">Калибровка: {r.have} из {r.need} дней</b>
-        <div className="readiness-bar calibrating" role="progressbar" aria-valuemin={0} aria-valuemax={r.need} aria-valuenow={r.have}>
-          <span style={{ width: `${pct}%` }} />
+        <Head label="Готовность сегодня" info={how} />
+        <b className="readiness-title">Калибровка</b>
+        <div className="calib-dots" role="progressbar" aria-valuemin={0} aria-valuemax={r.need} aria-valuenow={r.have} aria-label={`Калибровка: ${r.have} из ${r.need} дней`}>
+          {Array.from({ length: r.need }, (_, i) => (
+            <span key={i} className={i < r.have ? 'on' : undefined} />
+          ))}
         </div>
         <span className="muted small">
-          Оценка считается относительно вашей личной нормы. Она появится, когда наберётся {r.need} прошлых чек-инов — ещё{' '}
-          {r.need - r.have}.
+          {r.have} из {r.need} утренних чек-инов — ещё {r.need - r.have}, и появится оценка.
         </span>
         <div className="row">
           <button type="button" className="btn small" onClick={onCheckin}>
@@ -51,9 +85,9 @@ export function ReadinessCard({ state, onCheckin, onSettings }: { state: Readine
   if (r.kind === 'insufficient') {
     return (
       <section className="hero-card readiness">
-        <span className="hero-label">Готовность сегодня</span>
+        <Head label="Готовность сегодня" info={how} />
         <b className="readiness-title">Недостаточно данных</b>
-        <span className="muted small">В сегодняшнем чек-ине нет показателей, по которым уже изучена ваша норма.</span>
+        <span className="muted small">Сегодня отмечено то, для чего ваша норма ещё не изучена.</span>
         <button type="button" className="btn small" onClick={onCheckin}>
           Изменить чек-ин
         </button>
@@ -65,7 +99,19 @@ export function ReadinessCard({ state, onCheckin, onSettings }: { state: Readine
   const tiles = r.factors.slice(0, 4).map(describeFactor);
   return (
     <section className="hero-card readiness">
-      <span className="hero-label">{band.title}</span>
+      <Head
+        label={band.title}
+        info={
+          <>
+            {how}
+            {r.missing.length > 0 && (
+              <p className="muted">
+                Без данных (их вес отдан остальным): {r.missing.map((m) => COMPONENT_LABEL[m].charAt(0).toLowerCase() + COMPONENT_LABEL[m].slice(1)).join(', ')}.
+              </p>
+            )}
+          </>
+        }
+      />
       <b className="readiness-score num">{r.score}</b>
       <div className={`readiness-bar ${band.level}`} role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={r.score} aria-label="Готовность">
         <span style={{ width: `${r.score}%` }} />
@@ -91,8 +137,6 @@ export function ReadinessCard({ state, onCheckin, onSettings }: { state: Readine
         <p className="muted small">Недостаточно данных для сравнения с нормой.</p>
       )}
       <p className="readiness-explain">{explain(r.factors)}</p>
-      <p className="muted small">На уровне вашей нормы — 70. Границы статусов (80 / 60 / 40) условные и стартовые.</p>
-      {r.missing.length > 0 && <p className="muted small">Без данных (вес распределён на остальные): {r.missing.map((m) => COMPONENT_LABEL[m].charAt(0).toLowerCase() + COMPONENT_LABEL[m].slice(1)).join(', ')}.</p>}
 
       <div className="advice-card">
         <span className="hero-label">Совет на сегодня</span>
@@ -105,12 +149,11 @@ export function ReadinessCard({ state, onCheckin, onSettings }: { state: Readine
             Настроить
           </button>
         </div>
-        <span className="muted small">Совет, а не запрет: план тренировок не меняется автоматически.</span>
       </div>
       <div className="row-between">
-        <span className="muted small">{NOT_MEDICAL}</span>
+        <span className="muted small">Не медицинская рекомендация</span>
         <button type="button" className="btn small ghost" onClick={onCheckin}>
-          Чек-ин
+          Изменить чек-ин
         </button>
       </div>
     </section>

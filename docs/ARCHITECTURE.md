@@ -233,6 +233,16 @@ Perek.us (если сервер с ключом доступен) → Open Food 
 «назад» закрывает окно). `Modal` в `src/ui/components.tsx` — смахивание вниз (порог 90 px), фокус на поле
 с `data-autofocus`. `navigate()` ждёт, пока записи закрытых окон уберутся из истории.
 
+### v0.10
+
+- `src/ui/RealFigure.tsx` — фигура на canvas по разметке `public/anatomy/labels` (скрипт `scripts/anatomy/seg.py`).
+- `src/ui/components.tsx` — `InfoButton`, `InfoPanel`, `Card info` (подробности по кнопке «i»); `RatingInput anchors`.
+- `src/domain/checkinScales.ts`, `readiness.ts → personalScale`; `src/domain/supplements.ts` (приёмы, отметки, .ics);
+  `src/domain/measurePins.ts`; `src/domain/exercisePhotos.ts`.
+- `src/data/appMeta.ts` — `settings.lastBackupAt`, `settings.consent`; `src/ui/devicePermissions.ts`.
+- Страницы: `/more/dev`, `/more/permissions`, `/more/licenses`. Новые ключи settings: `measurePins`, `supplementLog`,
+  `consent`, `lastBackupAt` (структура таблиц не менялась, версия данных та же).
+
 ## Будущие расширения — куда встраивать
 
 - Аккаунты и несколько спортсменов: поле `athleteId` в записях (новая версия схемы) и серверное хранилище

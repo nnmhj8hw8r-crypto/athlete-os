@@ -1,10 +1,11 @@
 // Замеры: тесты физической подготовки (встроенные и свои) и фото прогресса.
+// v0.10: «Мои замеры» — свой список из тестов и упражнений журнала (кружок справа добавляет/убирает).
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { db } from '../../data/db.ts';
 import { deletePhoto, savePhoto, updatePhoto } from '../../data/photos.ts';
 import type { PhotoRecord } from '../../data/photoTypes.ts';
-import { saveEntity } from '../../data/repo.ts';
+import { saveEntity, setSetting } from '../../data/repo.ts';
 import {
   allTests,
   formatTestValue,
@@ -16,9 +17,10 @@ import {
   type TestCategory,
 } from '../../domain/fitnessTests.ts';
 import type { FieldErrors } from '../../domain/form.ts';
+import { EX_PREFIX, journalExercises, MEASURE_PINS_KEY, movePin, normalizePins, togglePin } from '../../domain/measurePins.ts';
 import { TEST_UNITS, type TestDef, type TestResult, type TestUnit } from '../../domain/schemas.ts';
 import { formatDateKey, todayKey } from '../../domain/time.ts';
-import { EmptyState, Field, FormError, Modal, Tabs } from '../../ui/components.tsx';
+import { EmptyState, Field, FormError, InfoButton, InfoPanel, Modal, Tabs } from '../../ui/components.tsx';
 import { useConfirmDelete, useFeedback } from '../../ui/feedback.tsx';
 import { Icons } from '../../ui/icons.tsx';
 import { href } from '../../ui/router.ts';
@@ -48,21 +50,115 @@ export function useTests(): FitnessTest[] | undefined {
   return useMemo(() => (own ? allTests(own) : undefined), [own]);
 }
 
+function PinCircle({ on, label, onClick }: { on: boolean; label: string; onClick: () => void }) {
+  return (
+    <button type="button" className={`pin-circle${on ? ' on' : ''}`} aria-pressed={on} aria-label={on ? `Убрать из моих замеров: ${label}` : `Добавить в мои замеры: ${label}`} onClick={onClick}>
+      {on ? Icons.check : Icons.plus}
+    </button>
+  );
+}
+
 function TestsList() {
   const tests = useTests();
   const results = useLiveQuery(() => db.testResults.toArray(), []);
+  const workouts = useLiveQuery(() => db.workouts.toArray(), []);
+  const pins = useLiveQuery(async () => normalizePins((await db.settings.get(MEASURE_PINS_KEY))?.value), []);
   const [adding, setAdding] = useState<FitnessTest | null>(null);
   const [creating, setCreating] = useState(false);
-  if (tests === undefined || results === undefined) return <p className="muted">Загрузка…</p>;
+  const [ordering, setOrdering] = useState(false);
+  const [info, setInfo] = useState(false);
+  const journal = useMemo(() => (workouts ? journalExercises(workouts) : []), [workouts]);
+  if (tests === undefined || results === undefined || pins === undefined) return <p className="muted">Загрузка…</p>;
   const byTest = new Map<string, TestResult[]>();
   for (const r of results) byTest.set(r.testId, [...(byTest.get(r.testId) ?? []), r]);
+  const testById = new Map(tests.map((t) => [t.id, t]));
+  const exById = new Map(journal.map((e) => [e.id, e]));
+  const save = (next: string[]) => void setSetting(MEASURE_PINS_KEY, next);
+  const toggle = (id: string) => save(togglePin(pins, id));
+  const mine = pins.filter((id) => (id.startsWith(EX_PREFIX) ? exById.has(id.slice(EX_PREFIX.length)) : testById.has(id)));
 
   return (
     <>
-      <p className="small muted">
-        Общие тесты для отслеживания своей динамики. Нормативов и оценок нет — сравнивайте себя с собой и проводите
-        тест в одинаковых условиях. Можно добавить свои тесты.
-      </p>
+      <div className="row-between">
+        <h2 className="ex-section-head">Мои замеры</h2>
+        <span className="row">
+          {mine.length > 1 && (
+            <button type="button" className="btn small ghost" aria-pressed={ordering} onClick={() => setOrdering((o) => !o)}>
+              {ordering ? 'Готово' : 'Порядок'}
+            </button>
+          )}
+          <InfoButton open={info} onToggle={() => setInfo((o) => !o)} label="о замерах" />
+        </span>
+      </div>
+      {info && (
+        <InfoPanel>
+          <p>Соберите свой список: кружок справа у теста или упражнения добавляет его сюда, повторное нажатие — убирает.</p>
+          <p className="muted">Нормативов нет — сравнивайте себя с собой и проводите тест в одинаковых условиях.</p>
+        </InfoPanel>
+      )}
+      {mine.length === 0 ? (
+        <p className="small muted">Нажмите «+» справа у теста или упражнения — он появится здесь.</p>
+      ) : (
+        <ul className="ex-list my-measures">
+          {mine.map((id, k) => {
+            const isEx = id.startsWith(EX_PREFIX);
+            const t = isEx ? undefined : testById.get(id);
+            const ex = isEx ? exById.get(id.slice(EX_PREFIX.length)) : undefined;
+            const last = t ? latestResult(byTest.get(t.id) ?? []) : undefined;
+            const name = t?.name ?? ex?.name ?? '';
+            const link = t ? `/training/test?id=${encodeURIComponent(t.id)}` : `/training/exercise?id=${encodeURIComponent(ex?.id ?? '')}`;
+            const meta = t ? (last ? formatDateKey(last.date) : 'ещё нет результата') : `из тренировок${ex?.lastDate ? ` · ${formatDateKey(ex.lastDate)}` : ''}`;
+            return (
+              <li key={id} className="measure-row">
+                <a className="ex-row" href={href(link)}>
+                  <span className="grow">
+                    <span className="title">{name}</span>
+                    <span className="meta">{meta}</span>
+                  </span>
+                  <span className="ex-last num">{t ? (last ? formatTestValue(t, last.value) : '––') : ex?.best}</span>
+                </a>
+                {ordering ? (
+                  <span className="order-btns">
+                    <button type="button" className="icon-btn" aria-label={`Выше: ${name}`} disabled={k === 0} onClick={() => save(movePin(mine, id, -1))}>
+                      {Icons.arrowUp}
+                    </button>
+                    <button type="button" className="icon-btn" aria-label={`Ниже: ${name}`} disabled={k === mine.length - 1} onClick={() => save(movePin(mine, id, 1))}>
+                      {Icons.arrowDown}
+                    </button>
+                  </span>
+                ) : t ? (
+                  <button type="button" className="round-btn" aria-label={`Добавить результат: ${name}`} onClick={() => setAdding(t)}>
+                    {Icons.plus}
+                  </button>
+                ) : (
+                  <PinCircle on label={name} onClick={() => toggle(id)} />
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {journal.length > 0 && (
+        <section className="ex-section">
+          <h2 className="ex-section-head">Из моих тренировок</h2>
+          <ul className="ex-list">
+            {journal.map((e) => (
+              <li key={e.id} className="measure-row">
+                <a className="ex-row" href={href(`/training/exercise?id=${encodeURIComponent(e.id)}`)}>
+                  <span className="grow">
+                    <span className="title">{e.name}</span>
+                    {e.lastDate && <span className="meta">{formatDateKey(e.lastDate)}</span>}
+                  </span>
+                  <span className="ex-last num">{e.best}</span>
+                </a>
+                <PinCircle on={pins.includes(EX_PREFIX + e.id)} label={e.name} onClick={() => toggle(EX_PREFIX + e.id)} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {CATEGORY_ORDER.map((c) => {
         const list = tests.filter((t) => t.category === c);
         if (!list.length) return null;
@@ -75,18 +171,13 @@ function TestsList() {
                 return (
                   <li key={t.id} className="measure-row">
                     <a className="ex-row" href={href(`/training/test?id=${encodeURIComponent(t.id)}`)}>
-                      <span className="measure-icon" aria-hidden="true">
-                        {Icons.training}
-                      </span>
                       <span className="grow">
                         <span className="title">{t.name}</span>
                         {last && <span className="meta">{formatDateKey(last.date)}</span>}
                       </span>
                       <span className="ex-last num">{last ? formatTestValue(t, last.value) : '––'}</span>
                     </a>
-                    <button type="button" className="round-btn" aria-label={`Добавить результат: ${t.name}`} onClick={() => setAdding(t)}>
-                      {Icons.plus}
-                    </button>
+                    <PinCircle on={pins.includes(t.id)} label={t.name} onClick={() => toggle(t.id)} />
                   </li>
                 );
               })}

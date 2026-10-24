@@ -80,40 +80,41 @@ export function WeekTab({ onStartFree }: { onStartFree: () => void }) {
 
   return (
     <div className="stack">
-      <div className="week-strip">
+      <div className="week-head">
         <button type="button" className="icon-btn" aria-label="Предыдущая неделя" onClick={() => setDate(addDays(date, -7))}>
           {Icons.chevronLeft}
         </button>
-        <div className="week-days">
-          {days.map((d, i) => {
-            const planned = schedule.filter((e) => e.date === d);
-            const done = planned.filter((e) => doneBySchedule.has(e.id)).length + workouts.filter((w) => toDateKey(w.startAt) === d && !w.scheduleId).length;
-            const state = done && done >= planned.length ? 'wd-done' : planned.length ? (done ? 'wd-partial' : 'wd-planned') : 'wd-empty';
-            return (
-              <button
-                key={d}
-                type="button"
-                className={`week-day plan-day${d === date ? ' selected' : ''}${d === today ? ' today' : ''}`}
-                onClick={() => setDate(d)}
-                aria-label={`${WEEKDAY_FULL[i]}, ${formatDateKey(d)}${planned.length ? `, в плане: ${planned.length}` : ''}`}
-              >
-                <span className="wd-name">{WEEKDAY_SHORT[i]}</span>
-                <span className={`wd-circle ${state}`}>{Number(d.slice(8))}</span>
-                {/* Три точки — утро, день, вечер: что запланировано и что сделано. */}
-                <span className="wd-slots" aria-hidden="true">
-                  {SCHEDULE_SLOTS.map((slot) => {
-                    const inSlot = planned.filter((e) => e.slot === slot);
-                    const cls = inSlot.length === 0 ? '' : inSlot.every((e) => doneBySchedule.has(e.id)) ? ' done' : ' planned';
-                    return <i key={slot} className={cls} />;
-                  })}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+        <span className="week-range">{weekRange(days)}</span>
         <button type="button" className="icon-btn" aria-label="Следующая неделя" onClick={() => setDate(addDays(date, 7))}>
           {Icons.chevronRight}
         </button>
+      </div>
+      <div className="week-days week-days-min">
+        {days.map((d, i) => {
+          const planned = schedule.filter((e) => e.date === d);
+          const done = planned.filter((e) => doneBySchedule.has(e.id)).length + workouts.filter((w) => toDateKey(w.startAt) === d && !w.scheduleId).length;
+          const state = done && done >= planned.length ? 'wd-done' : planned.length ? (done ? 'wd-partial' : 'wd-planned') : 'wd-empty';
+          return (
+            <button
+              key={d}
+              type="button"
+              className={`week-day plan-day${d === date ? ' selected' : ''}${d === today ? ' today' : ''}`}
+              onClick={() => setDate(d)}
+              aria-label={`${WEEKDAY_FULL[i]}, ${formatDateKey(d)}${planned.length ? `, в плане: ${planned.length}` : ''}`}
+            >
+              <span className="wd-name">{WEEKDAY_SHORT[i]}</span>
+              <span className={`wd-circle ${state}`}>{Number(d.slice(8))}</span>
+              {/* Точки — утро, день, вечер; только там, где что-то запланировано. */}
+              <span className="wd-slots" aria-hidden="true">
+                {SCHEDULE_SLOTS.map((slot) => {
+                  const inSlot = planned.filter((e) => e.slot === slot);
+                  const cls = inSlot.length === 0 ? '' : inSlot.every((e) => doneBySchedule.has(e.id)) ? ' done' : ' planned';
+                  return <i key={slot} className={cls} />;
+                })}
+              </span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="row-between">
@@ -267,4 +268,14 @@ function AddToPlanDialog({ date, slot: initialSlot, programs, onClose }: { date:
       )}
     </Modal>
   );
+}
+
+const MONTHS_GEN = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+/** «19–25 октября» или «28 октября – 3 ноября». */
+function weekRange(days: readonly string[]): string {
+  const a = days[0]!;
+  const b = days[days.length - 1]!;
+  const [ma, mb] = [Number(a.slice(5, 7)) - 1, Number(b.slice(5, 7)) - 1];
+  return ma === mb ? `${Number(a.slice(8))}–${Number(b.slice(8))} ${MONTHS_GEN[mb]}` : `${Number(a.slice(8))} ${MONTHS_GEN[ma]} – ${Number(b.slice(8))} ${MONTHS_GEN[mb]}`;
 }

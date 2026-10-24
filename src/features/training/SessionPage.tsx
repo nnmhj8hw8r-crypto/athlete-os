@@ -21,6 +21,7 @@ import {
 } from '../../domain/training.ts';
 import { formatDateTime, fromLocalInputValue, toLocalInputValue } from '../../domain/time.ts';
 import { EXERCISE_IMAGE_LICENSE_URL, exerciseImageCredit, exerciseImagePath } from '../../domain/exerciseImages.ts';
+import { exercisePhoto } from '../../domain/exercisePhotos.ts';
 import { ExercisePose } from '../../ui/BodyFigure.tsx';
 import { exerciseMarks, RealFigure } from '../../ui/RealFigure.tsx';
 import { useProfile } from '../onboarding/useProfile.ts';
@@ -493,7 +494,10 @@ function ExerciseView({ session, index, ex, setExercises, rest }: ExerciseViewPr
           {exerciseImagePath(ex.exerciseId) && (
             <ExercisePose src={exerciseImagePath(ex.exerciseId)!} credit={exerciseImageCredit(ex.exerciseId)} licenseUrl={EXERCISE_IMAGE_LICENSE_URL} />
           )}
-          {!exerciseImagePath(ex.exerciseId) && cat && hasPictogram(ex.exerciseId) && (
+          {!exerciseImagePath(ex.exerciseId) && exercisePhoto(ex.exerciseId) && (
+            <ExercisePose src={exercisePhoto(ex.exerciseId)!.path} credit={exercisePhoto(ex.exerciseId)!.credit} licenseUrl={exercisePhoto(ex.exerciseId)!.licenseUrl} photo />
+          )}
+          {!exerciseImagePath(ex.exerciseId) && !exercisePhoto(ex.exerciseId) && cat && hasPictogram(ex.exerciseId) && (
             <ExercisePose credit="Пиктограмма приложения">
               <Pictogram exerciseId={ex.exerciseId} primary={cat.muscles} secondary={cat.musclesSecondary} />
             </ExercisePose>

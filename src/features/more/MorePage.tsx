@@ -6,6 +6,7 @@ import { Icons } from '../../ui/icons.tsx';
 import { href } from '../../ui/router.ts';
 import { SHARE_MESSAGE, shareApp } from '../../ui/share.ts';
 import { useFeedbackUrl } from '../onboarding/useProfile.ts';
+import { useDevMode } from './DevPage.tsx';
 
 interface Item {
   icon: ReactNode;
@@ -18,6 +19,7 @@ interface Item {
 
 export function MorePage() {
   const feedback = useFeedbackUrl();
+  const devMode = useDevMode();
   const { notify } = useFeedback();
   const share = () => void shareApp().then((r) => SHARE_MESSAGE[r] && notify(SHARE_MESSAGE[r]!, r === 'failed' ? 'error' : 'info'));
 
@@ -33,14 +35,16 @@ export function MorePage() {
       title: 'Инструменты',
       items: [
         { icon: Icons.copy, title: 'Сводка для ИИ', text: 'Готовый текст о питании, сне и тренировках — вставьте в ChatGPT или Claude и задайте вопрос', path: '/more/ai' },
-        { icon: Icons.drop, title: 'Добавки', text: 'Отмечайте, что и когда принимаете — для себя и для разговора с врачом', path: '/more/supplements' },
+        { icon: Icons.pill, title: 'Добавки', text: 'Что принимаете сегодня, отметка «принял» и напоминания', path: '/more/supplements' },
         { icon: Icons.book, title: 'Библиотека', text: 'Статьи и заметки, которые вы сохранили', path: '/more/sources' },
       ],
     },
     {
       title: 'Приложение',
       items: [
-        { icon: Icons.edit, title: 'Настройки', text: 'Простой или полный режим, вид графиков, хранение данных', path: '/more/settings' },
+        { icon: Icons.edit, title: 'Настройки', text: 'Режим приложения, фигура, хранение данных', path: '/more/settings' },
+        { icon: Icons.shield, title: 'Правила и разрешения', text: 'Камера, уведомления, хранение данных', path: '/more/permissions' },
+        ...(devMode ? [{ icon: Icons.code, title: 'Для разработчика', text: 'Проверки и сведения об устройстве', path: '/more/dev' }] : []),
         { icon: Icons.arrowUp, title: 'Поделиться с друзьями', text: 'Отправить ссылку — у каждого своё приложение, ваши записи не передаются', onClick: share },
         { icon: Icons.pen, title: 'Оставить отзыв', text: 'Что понравилось и чего не хватает — 2–3 минуты во внешней форме', url: feedback },
         { icon: Icons.home, title: 'Знакомство с приложением', text: 'Показать приветствие снова и поменять сценарий: борец, зал или для себя', path: '/welcome' },

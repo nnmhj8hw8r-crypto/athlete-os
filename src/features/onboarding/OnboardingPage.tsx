@@ -1,13 +1,15 @@
 // Приветствие при первом запуске (v0.9): что это за приложение, разделы, кто вы, короткое интервью,
-// демо-версия и отзыв. Ответы сохраняются только на устройстве (settings.profile); текущий вес — обычной
-// записью массы тела. Повторно открывается из «Ещё» (#/welcome).
+// демо-версия и отзыв; v0.10 — анимированный знак, появление пунктов по очереди, шаг «Правила и разрешения».
+// Ответы сохраняются только на устройстве (settings.profile); текущий вес — обычной записью массы тела. Повторно открывается из «Ещё» (#/welcome).
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useEffect, useState, type ReactNode } from 'react';
 import { db } from '../../data/db.ts';
 import { countAll, saveEntity, setSetting } from '../../data/repo.ts';
 import { parseDecimal } from '../../domain/form.ts';
 import { defaultLevel, emptyLayout, PROFILE_KEY, sexFromAnswer, QUESTIONS, SCENARIO_META, SCENARIOS, type Profile, type Question, type Scenario } from '../../domain/profile.ts';
+import { useConsent } from '../../data/appMeta.ts';
 import { useFeedback } from '../../ui/feedback.tsx';
+import { PermissionsPanel } from '../more/PermissionsPanel.tsx';
 import { Icons } from '../../ui/icons.tsx';
 import { navigate } from '../../ui/router.ts';
 import { saveProfile, useProfile } from './useProfile.ts';
@@ -50,7 +52,8 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
 
   const weight = typeof answers.weightKg === 'string' ? parseDecimal(answers.weightKg) : undefined;
   const weightError = answers.weightKg && (weight === undefined || weight < 20 || weight > 300) ? 'Вес — число от 20 до 300' : null;
-  const steps = 5;
+  const steps = 6;
+  const consent = useConsent();
 
   async function finish() {
     if (!scenario || busy) return;
@@ -107,10 +110,14 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
       <div key={step} className="onb-body route-anim">
         {step === 0 && (
           <>
+            <svg className="onb-mark" viewBox="0 0 100 100" aria-hidden="true">
+              <circle className="onb-mark-ring" cx="50" cy="50" r="40" pathLength="100" />
+              <rect className="onb-mark-bar" x="14" y="45" width="72" height="10" />
+            </svg>
             <span className="onb-badge">Демо-версия</span>
             <h1>Personal Athlete OS</h1>
             <p className="onb-lead">Личный дневник спортсмена: питание, тренировки, сон и восстановление, сезон — в одном приложении.</p>
-            <ul className="onb-points">
+            <ul className="onb-points onb-stagger">
               <li>Ставится на экран «Домой» и работает даже без интернета.</li>
               <li>Открыл — и сразу пользуешься: всё нужное спортсмену в одном месте.</li>
             </ul>
@@ -120,7 +127,7 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
         {step === 1 && (
           <>
             <h2>Что внутри</h2>
-            <ul className="onb-sections">
+            <ul className="onb-sections onb-stagger">
               {SECTIONS.map((s) => (
                 <li key={s.title}>
                   <span className="onb-icon">{s.icon}</span>
@@ -190,6 +197,14 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
             </ul>
           </>
         )}
+
+        {step === 5 && (
+          <>
+            <h2>Правила и разрешения</h2>
+            <p className="muted">Разрешения можно дать сейчас или позже — «Ещё» → «Правила и разрешения».</p>
+            <PermissionsPanel />
+          </>
+        )}
       </div>
 
       <div className="onb-actions">
@@ -203,7 +218,7 @@ export function OnboardingPage({ replay = false }: { replay?: boolean }) {
             {step === 0 ? 'Начать знакомство' : step === 2 && !scenario ? 'Выберите вариант' : 'Далее'}
           </button>
         ) : (
-          <button type="button" className="btn primary big" disabled={busy} onClick={() => void finish()}>
+          <button type="button" className="btn primary big" disabled={busy || (!replay && !consent)} onClick={() => void finish()}>
             {replay ? 'Сохранить' : 'Перейти в приложение'}
           </button>
         )}

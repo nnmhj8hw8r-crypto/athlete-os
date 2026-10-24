@@ -2,10 +2,13 @@ import { useEffect, type CSSProperties, type ReactNode } from 'react';
 import { DashboardPage } from './features/dashboard/DashboardPage.tsx';
 import { AiSummaryPage } from './features/more/AiSummaryPage.tsx';
 import { BackupPage } from './features/more/BackupPage.tsx';
+import { DevPage } from './features/more/DevPage.tsx';
+import { LicensesPage, PermissionsPage } from './features/more/InfoPages.tsx';
 import { MorePage } from './features/more/MorePage.tsx';
 import { SettingsPage } from './features/more/SettingsPage.tsx';
 import { SourcesPage } from './features/more/SourcesPage.tsx';
 import { SupplementsPage } from './features/more/SupplementsPage.tsx';
+import { useSupplementReminders } from './features/more/useSupplementReminders.ts';
 import { OnboardingPage, useFirstRun } from './features/onboarding/OnboardingPage.tsx';
 import { useLevel } from './features/onboarding/useProfile.ts';
 import { FULL_ONLY_PATHS } from './domain/profile.ts';
@@ -48,6 +51,9 @@ const PAGES: Record<string, (r: Route) => ReactNode> = {
   '/more/backup': () => <BackupPage />,
   '/more/ai': () => <AiSummaryPage />,
   '/more/settings': () => <SettingsPage />,
+  '/more/dev': () => <DevPage />,
+  '/more/permissions': () => <PermissionsPage />,
+  '/more/licenses': () => <LicensesPage />,
 };
 
 function isActive(navPath: string, current: string) {
@@ -60,6 +66,7 @@ export function App() {
   const firstRun = useFirstRun();
   const main = MAIN.filter((n) => level === 'full' || !FULL_ONLY_PATHS.includes(n.path));
   const render = PAGES[route.path];
+  useSupplementReminders();
 
   useEffect(() => {
     window.scrollTo(0, 0);

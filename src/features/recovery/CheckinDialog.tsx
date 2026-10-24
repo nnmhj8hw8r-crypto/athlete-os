@@ -5,13 +5,18 @@ import { useState, type FormEvent } from 'react';
 import { saveCheckin } from '../../data/checkins.ts';
 import { db } from '../../data/db.ts';
 import { emptyToUndefined, numberToField, parseDecimal, type FieldErrors } from '../../domain/form.ts';
-import { MUSCLE_LABEL } from '../../domain/muscles.ts';
-import { MUSCLES, type Checkin, type Muscle } from '../../domain/schemas.ts';
+import { CHECKIN_SCALES, type ScaleId } from '../../domain/checkinScales.ts';
+import type { Checkin, Muscle } from '../../domain/schemas.ts';
 import { timeInBedMinutes } from '../../domain/sleep.ts';
 import { toDateKey } from '../../domain/time.ts';
 import { Field, FormError, Modal, RatingInput } from '../../ui/components.tsx';
 import { useFeedback } from '../../ui/feedback.tsx';
-import { MuscleStatusMap } from './MuscleStatusMap.tsx';
+import { MuscleChips, MuscleStatusMap } from './MuscleStatusMap.tsx';
+
+function Scale({ id, value, onChange }: { id: ScaleId; value: number | undefined; onChange: (v: number | undefined) => void }) {
+  const def = CHECKIN_SCALES[id];
+  return <RatingInput label={def.label} anchors={def.anchors} info={<p className="small">{def.how}</p>} value={value} onChange={onChange} />;
+}
 
 export function CheckinDialog({ date, existing, onClose, onSaved }: { date: string; existing?: Checkin; onClose: () => void; onSaved?: () => void }) {
   const { notify } = useFeedback();
@@ -88,23 +93,21 @@ export function CheckinDialog({ date, existing, onClose, onSaved }: { date: stri
             </button>
           )}
         </div>
-        <RatingInput label="Качество сна" low="плохо" high="отлично" value={quality} onChange={setQuality} />
-        <RatingInput label="Энергия, самочувствие" low="нет сил" high="полон сил" value={energy} onChange={setEnergy} />
-        <RatingInput label="Настроение" low="плохое" high="отличное" value={mood} onChange={setMood} />
-        <RatingInput label="Стресс" low="спокоен" high="сильный" value={stress} onChange={setStress} />
+        <Scale id="sleepQuality" value={quality} onChange={setQuality} />
+        <Scale id="energy" value={energy} onChange={setEnergy} />
+        <Scale id="mood" value={mood} onChange={setMood} />
+        <Scale id="stress" value={stress} onChange={setStress} />
+        <p className="small muted">Описания значений — подсказки приложения, а не медицинский опросник.</p>
 
         <div className="field">
           <span className="label">
-            Что болит <span className="optional">(нажмите на мышцу)</span>
+            Что болит <span className="optional">(выберите группы)</span>
           </span>
-          <MuscleStatusMap levels={Object.fromEntries(sore.map((m) => [m, 2]))} sore={sore} onPick={toggle} />
-          <div className="chips">
-            {MUSCLES.map((m) => (
-              <button key={m} type="button" className={`chip${sore.includes(m) ? ' chip-selected' : ''}`} aria-pressed={sore.includes(m)} onClick={() => toggle(m)}>
-                {MUSCLE_LABEL[m]}
-              </button>
-            ))}
-          </div>
+          <MuscleChips selected={sore} onPick={toggle} />
+          <details className="details">
+            <summary>Показать на фигуре</summary>
+            <MuscleStatusMap sore={sore} onPick={toggle} />
+          </details>
         </div>
 
         <details className="details">
