@@ -35,9 +35,21 @@
 - Опоздавший после разбивки встаёт в подходящую сетку с местом; если места нет — пересобирается
   только его группа. Изменённые напечатанные шахматки помечаются «перепечатать».
 
+## Работа с кодом на компьютере
+
+Зависимостей нет, ничего устанавливать не нужно — достаточно Node.js 22.18+.
+
+```bash
+git clone https://github.com/nnmhj8hw8r-crypto/gladiator
+cd gladiator
+node build.mjs
+```
+
+Готовый файл — `dist/gladiator.html`.
+
 ## Разработка
 
 - `src/logic.js` — вся логика (без интерфейса), `src/app.js` — интерфейс, `src/style.css` — стили и бланк печати.
-- `node gladiator/build.mjs` — собрать `dist/gladiator.html` (и `dist/artifact.html` для онлайн-демо).
-- `node --test gladiator/tests/run-tests.mjs` — проверки логики.
+- `node build.mjs` — собрать `dist/gladiator.html` (и `dist/artifact.html` для онлайн-демо).
+- `node --test tests/run-tests.mjs` — проверки логики.
 - Требования и открытые вопросы — в документе проекта «Гладиатор — приложение для шахматок».
