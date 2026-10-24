@@ -1331,3 +1331,6 @@ dialog.scanner-full::backdrop { background: #05070d; }
 .whats-new ul, .changelog-section ul { margin: 0 0 10px; padding-inline-start: 18px; }
 .whats-new li, .changelog-section li { margin-block: 4px; }
 .changelog-section { margin-block: 8px; }
+
+/* Бета-копия (DECISIONS 105): маленькая метка по центру сверху, чтобы не перепутать с основным приложением */
+.beta-badge { position: fixed; top: env(safe-area-inset-top); left: 50%; transform: translateX(-50%); z-index: 100; padding: 1px 10px; border-radius: 0 0 8px 8px; background: #e8590c; color: #fff; font-size: 0.65rem; font-weight: 700; letter-spacing: 0.08em; pointer-events: none; }

@@ -7,6 +7,7 @@
 // 3. Увеличить DATA_SCHEMA_VERSION в src/domain/backup.ts и добавить миграцию копий.
 // Подробнее — docs/ARCHITECTURE.md, раздел «Версии схемы данных».
 import Dexie, { type EntityTable } from 'dexie';
+import { IS_BETA } from '../channel.ts';
 import { programFromTemplate } from '../domain/training.ts';
 import type {
   BodyWeight,
@@ -52,7 +53,8 @@ export type AthleteDb = Dexie & {
   settings: EntityTable<Setting, 'key'>;
 };
 
-export const DB_NAME = 'personal-athlete-os';
+/** У беты своя база: данные основного приложения она не читает и не меняет (DECISIONS 105). */
+export const DB_NAME = IS_BETA ? 'personal-athlete-os-beta' : 'personal-athlete-os';
 
 /** Индексы таблиц версии 1. Первое поле — первичный ключ. */
 const SCHEMA_V1: Record<Exclude<TableName, 'water' | 'programs' | 'schedule' | 'testDefs' | 'testResults' | 'checkins'>, string> = {

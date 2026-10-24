@@ -1,12 +1,15 @@
-# Публикация приложения на GitHub Pages при каждом push в main.
-# Перед публикацией проходят проверка типов, линтер и тесты — сломанная версия на телефон не попадёт.
+# Публикация приложения на GitHub Pages при каждом push в main или dev.
+# Основное приложение собирается из ветки main и лежит в корне сайта; бета (вторая иконка для проверки
+# новых функций, DECISIONS 105) — из ветки dev в подпапке /beta/. Пока ветки dev нет, бета собирается из main.
+# Перед публикацией основной версии проходят проверка типов, линтер и тесты — сломанная версия на телефон не попадёт.
+# Сломанная бета публикацию основной версии не блокирует: тогда на сайте остаётся прошлая бета.
 # Сервер (Perek.us) здесь не запускается: на Pages работает только браузерная часть,
 # штрихкоды ищутся в Open Food Facts напрямую.
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
@@ -23,29 +26,57 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: stable
+
+      - name: Есть ли ветка dev
+        id: dev
+        run: |
+          if git ls-remote --exit-code --heads "https://github.com/${{ github.repository }}.git" dev > /dev/null; then echo "ref=dev" >> "$GITHUB_OUTPUT"; else echo "ref=main" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.dev.outputs.ref }}
+          path: beta
 
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+          cache-dependency-path: stable/package-lock.json
 
-      - run: npm ci
-
-      - name: Проверки
+      - name: Основное приложение
+        working-directory: stable
         run: |
+          npm ci
           npm run typecheck
           npm run lint
           npm test
-
-      - name: Сборка
-        run: |
           # Репозиторий <имя>.github.io открывается с корня, остальные — с /<имя репозитория>/
           if [[ "${{ github.event.repository.name }}" == *.github.io ]]; then BASE_PATH=/; else BASE_PATH="/${{ github.event.repository.name }}/"; fi
+          echo "BASE_PATH=$BASE_PATH" >> "$GITHUB_ENV"
           BASE_PATH="$BASE_PATH" npm run build
+
+      - name: Бета
+        id: beta
+        continue-on-error: true
+        working-directory: beta
+        run: |
+          npm ci
+          npm run typecheck
+          npm run lint
+          npm test
+          BASE_PATH="${BASE_PATH}beta/" VITE_APP_CHANNEL=beta npm run build
+
+      - name: Собрать сайт
+        run: |
+          cp -r stable/dist site
+          if [ "${{ steps.beta.outcome }}" = "success" ]; then cp -r beta/dist site/beta; else echo "::warning::Бета не собралась — на сайте нет свежей беты (основная версия опубликована)"; fi
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: site
 
   deploy:
     needs: build

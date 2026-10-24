@@ -10,16 +10,31 @@ const API_PORT = Number(process.env.PORT ?? 8787);
  */
 const BASE = process.env.BASE_PATH ?? '/';
 
+/** Бета — вторая копия для проверки новых функций: свои название, значок и кэш (DECISIONS 105). */
+const BETA = process.env.VITE_APP_CHANNEL === 'beta';
+const ICON = BETA ? 'icons/beta-' : 'icons/';
+
 export default defineConfig({
   base: BASE,
   plugins: [
     react(),
+    {
+      name: 'channel-html',
+      transformIndexHtml: (html) =>
+        BETA
+          ? html
+              .replace('content="Athlete OS"', 'content="Athlete β"')
+              .replace('icons/apple-touch-icon.png', 'icons/beta-apple-touch-icon.png')
+              .replace('<title>Personal Athlete OS</title>', '<title>Personal Athlete OS β</title>')
+          : html,
+    },
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/apple-touch-icon.png', 'icons/icon.svg'],
+      includeAssets: [`${ICON}apple-touch-icon.png`, 'icons/icon.svg'],
       manifest: {
-        name: 'Personal Athlete OS',
-        short_name: 'Athlete OS',
+        name: BETA ? 'Personal Athlete OS β' : 'Personal Athlete OS',
+        short_name: BETA ? 'Athlete β' : 'Athlete OS',
+        id: BASE,
         description: 'Личный дневник подготовки: питание, тренировки, восстановление, сезон',
         lang: 'ru',
         start_url: BASE,
@@ -28,9 +43,9 @@ export default defineConfig({
         background_color: '#000000',
         theme_color: '#000000',
         icons: [
-          { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          { src: `${ICON}icon-192.png`, sizes: '192x192', type: 'image/png' },
+          { src: `${ICON}icon-512.png`, sizes: '512x512', type: 'image/png' },
+          { src: `${ICON}icon-512.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       workbox: {
@@ -41,7 +56,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}', 'data/*.json'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api\//],
+        // Основной Service Worker лежит выше беты по адресу и иначе подменил бы её страницу своей.
+        navigateFallbackDenylist: BETA ? [/^\/api\//] : [/^\/api\//, /\/beta\//],
         runtimeCaching: [{ urlPattern: /\/api\//, handler: 'NetworkOnly' }],
       },
     }),

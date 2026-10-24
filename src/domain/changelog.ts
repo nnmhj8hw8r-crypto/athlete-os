@@ -20,6 +20,21 @@ export const LAST_SEEN_VERSION_KEY = 'lastSeenVersion';
 
 export const CHANGELOG: readonly Release[] = [
   {
+    version: '0.11.1',
+    date: '2026-10-24',
+    user: [],
+    dev: [
+      {
+        title: 'Новое',
+        items: [
+          'Бета-копия: вторая иконка «Athlete β» (/beta/), отдельная база personal-athlete-os-beta, метка «БЕТА» (DECISIONS 105)',
+          'Сборка: pages.yml собирает main (основное) и dev (бета) в один сайт; сломанная бета основную не блокирует',
+        ],
+      },
+      { title: 'Данные', items: ['Структура БД не менялась; основное приложение работает как раньше'] },
+    ],
+  },
+  {
     version: '0.11.0',
     date: '2026-10-24',
     user: [

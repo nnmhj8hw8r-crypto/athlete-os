@@ -255,3 +255,4 @@ Perek.us (если сервер с ключом доступен) → Open Food 
   фазы сезона — отдельная таблица поверх программ и плана недели.
 - Видео техники: поле ссылки/файла у упражнения каталога (своего) или в `settings.exerciseNotes`.
 - `src/domain/personalMode.ts` — личный режим и справочник добавок (`settings.personalMode`); включение — `src/data/appMeta.ts`.
+- `src/channel.ts` — `IS_BETA` (основное или бета, DECISIONS 105): имя базы, название, значок и метка. Сборка беты: `VITE_APP_CHANNEL=beta BASE_PATH=/<репо>/beta/`.

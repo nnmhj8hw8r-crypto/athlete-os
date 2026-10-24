@@ -3,6 +3,7 @@
 // пользователя); режим разработчика — 7 нажатий по версии, открывает раздел «Для разработчика».
 import { useEffect, useState } from 'react';
 import { APP_VERSION } from '../../appVersion.ts';
+import { IS_BETA } from '../../channel.ts';
 import { setPersonalMode, useLastBackup, usePersonalMode } from '../../data/appMeta.ts';
 import { db } from '../../data/db.ts';
 import { setSetting } from '../../data/repo.ts';
@@ -205,7 +206,7 @@ export function SettingsPage() {
       )}
 
       <button type="button" className="version-line" onClick={tapVersion}>
-        Personal Athlete OS {APP_VERSION} · демо
+        Personal Athlete OS {APP_VERSION} · {IS_BETA ? 'бета' : 'демо'}
       </button>
     </Page>
   );

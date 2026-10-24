@@ -1,4 +1,5 @@
 import { useEffect, type CSSProperties, type ReactNode } from 'react';
+import { IS_BETA } from './channel.ts';
 import { DashboardPage } from './features/dashboard/DashboardPage.tsx';
 import { AiSummaryPage } from './features/more/AiSummaryPage.tsx';
 import { BackupPage } from './features/more/BackupPage.tsx';
@@ -89,6 +90,7 @@ export function App() {
   return (
     <FeedbackProvider>
       <div className="app">
+        {IS_BETA && <div className="beta-badge" title="Тестовая копия: данные отдельные от основного приложения">БЕТА</div>}
         <WhatsNew />
         <nav className="nav" aria-label="Основные разделы">
           <span className="nav-brand">Personal Athlete OS</span>
