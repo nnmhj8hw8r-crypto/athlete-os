@@ -446,7 +446,6 @@
       '</section>';
 
     const q = ui.search.trim().toLowerCase().replace(/ё/g, 'е');
-    const map = pm();
     const list = state.participants.slice().reverse().filter((p) => !q || (GL.fullName(p) + ' ' + (p.branch || '') + ' ' + (p.coach || '')).toLowerCase().replace(/ё/g, 'е').includes(q));
     const rows = list.map((p) => {
       const g = GL.gridOfParticipant(state, p.id);
@@ -464,7 +463,6 @@
         '<button class="btn small" data-act="' + (p.withdrawn ? 'restore' : 'withdraw') + '" data-id="' + p.id + '">' + (p.withdrawn ? 'Вернуть' : 'Снять') + '</button>' +
         '<button class="btn small danger" data-act="delete" data-id="' + p.id + '" aria-label="Удалить">×</button></div></td></tr>';
     }).join('');
-    void map;
     const table = '<section class="panel"><div class="row"><h2>Участники <span class="hint">' + state.participants.length + '</span></h2><span class="spacer"></span>' +
       '<input id="search" type="search" placeholder="Поиск по фамилии, филиалу, тренеру" value="' + h(ui.search) + '" style="min-width:min(280px,100%)"></div>' +
       (state.participants.length ? '<div class="table-wrap"><table class="list"><thead><tr><th>ФИО</th><th>Д. р.</th><th>Пол</th><th>Вес</th><th>Уровень</th><th>Филиал</th><th>Тренер</th><th>Часть</th><th>Сетка</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
@@ -669,7 +667,7 @@
       (built ? '<button class="btn" data-act="distribute" data-id="' + part.id + '">Распределить по коврам</button>' : '') +
       '<button class="btn primary" data-act="build" data-id="' + part.id + '" ' + (people.length ? '' : 'disabled') + '>' + (built ? 'Пересобрать сетки' : 'Собрать сетки') + '</button></div>' +
       (built ? '' : (people.length ? '<div class="notice info">Когда взвешивание этой части закончено, нажмите «Собрать сетки». Приложение разложит участников по полу, уровню и весу на сетки по ' + s.minSize + '–' + s.maxSize + ' человек. Потом сетки можно поправить вручную.</div>' : '<div class="empty">В этой части пока нет взвешенных участников.</div>')) +
-      (unassigned.length ? '<div class="notice bad"><b>Без сетки: ' + unassigned.length + '.</b> ' + unassigned.map((p) => h(GL.fullName(p)) + ' (' + p.weight + ' кг)').join(', ') + '. <button class="btn small" data-act="place-all" data-id="' + part.id + '">Разложить по сеткам</button></div>' : '') +
+      (unassigned.length ? '<div class="notice bad"><b>Без сетки: ' + unassigned.length + '.</b> ' + unassigned.map((p) => h(GL.fullName(p)) + ' (' + h(Number(p.weight).toFixed(1)) + ' кг)').join(', ') + '. <button class="btn small" data-act="place-all" data-id="' + part.id + '">Разложить по сеткам</button></div>' : '') +
       '</section>';
     if (!built) return head;
     const cards = grids.map((g, i) => {
@@ -801,7 +799,9 @@
     const s = state.settings;
     const grids = GL.gridsOfPart(state, part.id).filter((g) => ui.printMat === 'all' || g.mat === Number(ui.printMat));
     const labels = GL.gridLabels(state, part.id);
-    if (!ui.printSel || ui.printSel.part !== part.id) ui.printSel = { part: part.id, ids: new Set(GL.gridsOfPart(state, part.id).filter((g) => !g.printedAt || g.dirtyAfterPrint).map((g) => g.id)) };
+    // Выбор сбрасывается, когда у части меняется состав сеток (пересборка, распределение, отмена).
+    const gridSig = part.id + ':' + GL.gridsOfPart(state, part.id).map((g) => g.id).join(',');
+    if (!ui.printSel || ui.printSel.sig !== gridSig) ui.printSel = { sig: gridSig, part: part.id, ids: new Set(GL.gridsOfPart(state, part.id).filter((g) => !g.printedAt || g.dirtyAfterPrint).map((g) => g.id)) };
     const sel = ui.printSel.ids;
     const chosen = grids.filter((g) => sel.has(g.id));
     const list = grids.map((g) => '<label><input type="checkbox" data-psel="' + g.id + '" ' + (sel.has(g.id) ? 'checked' : '') + '> №' + (GL.gridsOfPart(state, part.id).indexOf(g) + 1) + ' · ' + h(labels[g.id]) + ' кг · ковёр ' + (g.mat ? GL.toRoman(g.mat) : '—') + ' · ' + g.members.length + ' чел. ' +
@@ -880,13 +880,16 @@
 
   function loadJson(text) {
     let data;
-    try { data = GL.migrate(JSON.parse(text)); } catch (e) {
+    let report;
+    try { ({ state: data, report } = GL.migrateWithReport(JSON.parse(text))); } catch (e) {
       ask({ title: 'Файл не открылся', text: (e && e.message ? e.message : 'Неверный формат') + '. Выберите файл, сохранённый кнопкой «Сохранить в файл».', cancel: 'Понятно' });
       return;
     }
     ask({
       title: 'Открыть турнир из файла?',
-      text: 'В файле ' + data.participants.length + ' ' + plural(data.participants.length, 'участник', 'участника', 'участников') + ', дата ' + GL.formatRuDate(data.settings.date) + '. Текущий турнир в приложении будет заменён (его можно вернуть кнопкой «Отменить»).',
+      text: 'В файле ' + data.participants.length + ' ' + plural(data.participants.length, 'участник', 'участника', 'участников') + ', дата ' + GL.formatRuDate(data.settings.date) + '.' +
+        (report.dropped || report.refs ? ' Проверка файла: пропущено записей с неверными данными — ' + report.dropped + ', ссылок на несуществующих участников в сетках — ' + report.refs + '.' : '') +
+        ' Текущий турнир в приложении будет заменён (его можно вернуть кнопкой «Отменить»).',
       ok: 'Открыть', onOk: () => commit((s) => { Object.keys(s).forEach((k) => delete s[k]); Object.assign(s, data); }, 'Турнир открыт из файла'),
     });
   }

@@ -236,3 +236,43 @@ test('пробный турнир: заявка больше числа прие
   assert.equal(sum.arrived, t.participants.length);
   assert.ok(sum.expected > 0 && sum.absent > 0);
 });
+
+test('импорт: вес-строка с HTML отбрасывается, плохие даты и id тоже', () => {
+  const s = GL.defaultState();
+  const good = { id: 'a1', lastName: 'Тест', firstName: 'Иван', birthDate: '2021-03-04', sex: 'М', weight: 24.5 };
+  const data = JSON.parse(JSON.stringify(s));
+  data.participants = [
+    good,
+    Object.assign({}, good, { id: 'a2', weight: '<img src=x onerror=alert(1)>' }),
+    Object.assign({}, good, { id: 'a3', birthDate: '2021-02-30' }),
+    Object.assign({}, good, { id: 'a4"onmouseover="x' }),
+    Object.assign({}, good, { id: 'a5', lastName: '   ' }),
+    Object.assign({}, good, { id: 'a1' }),
+    Object.assign({}, good, { id: 'a6', weight: '24,5', sex: 'девочка' }),
+  ];
+  const { state, report } = GL.migrateWithReport(data);
+  assert.deepEqual(state.participants.map((p) => p.id), ['a1', 'a6']);
+  assert.equal(state.participants[1].weight, 24.5);
+  assert.equal(state.participants[1].sex, 'Ж');
+  assert.equal(report.dropped, 5);
+});
+
+test('импорт: ссылки сеток на несуществующих участников убираются и считаются', () => {
+  const s = GL.defaultState();
+  const data = JSON.parse(JSON.stringify(s));
+  data.participants = [{ id: 'a1', lastName: 'Тест', birthDate: '2021-03-04', weight: 24 }];
+  data.grids = [{ id: 'g1', partId: 'p1', members: ['a1', 'ghost', '<x>'] }, { id: 'g2', partId: 'p1', members: ['ghost'] }, { id: 'g3', partId: 'нет-части', members: ['a1'] }];
+  const { state, report } = GL.migrateWithReport(data);
+  assert.deepEqual(state.grids.map((g) => g.members), [['a1']]);
+  assert.equal(report.refs, 3);
+  assert.equal(report.dropped, 2);
+});
+
+test('импорт: неизвестные поля и не-объекты не попадают в состояние', () => {
+  const data = { participants: ['строка', null, 5], settings: { title: '<b>x</b>', parts: 'нет' }, builtParts: { p1: true, '<evil>': true } };
+  const { state, report } = GL.migrateWithReport(data);
+  assert.equal(state.participants.length, 0);
+  assert.equal(report.dropped, 3);
+  assert.deepEqual(state.builtParts, { p1: true });
+  assert.equal(state.settings.parts.length, 4);
+});

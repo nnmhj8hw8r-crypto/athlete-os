@@ -47,27 +47,189 @@
     };
   }
 
-  // Старые файлы турнира приводим к текущему формату.
-  function migrate(data) {
+  // Проверка значений из файла: всё, что не проходит, отбрасывается, а не отображается как есть.
+  const ID_RE = /^[A-Za-z0-9_-]{1,64}$/;
+  const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+  function cleanStr(v, max) {
+    return typeof v === 'string' ? v.trim().slice(0, max || 100) : '';
+  }
+  function cleanId(v) {
+    return typeof v === 'string' && ID_RE.test(v) ? v : null;
+  }
+  function cleanDate(v) {
+    if (typeof v !== 'string' || !DATE_RE.test(v)) return null;
+    const d = new Date(v + 'T00:00:00Z');
+    return !isNaN(d) && d.toISOString().slice(0, 10) === v ? v : null;
+  }
+  // Вес — число от 5 до 150 кг; строки вида «24,5» принимаются, всё остальное — нет.
+  function cleanWeight(v) {
+    let w = NaN;
+    if (typeof v === 'number') w = v;
+    else if (typeof v === 'string' && /^\s*\d{1,3}([.,]\d{1,2})?\s*$/.test(v)) w = parseFloat(v.replace(',', '.'));
+    return Number.isFinite(w) && w >= 5 && w <= 150 ? Math.round(w * 10) / 10 : null;
+  }
+  function cleanSex(v) {
+    return typeof v === 'string' && /^(ж|д|f)/i.test(v.trim()) ? 'Ж' : 'М';
+  }
+  function cleanInt(v, min, max, def) {
+    const n = Number(v);
+    return Number.isInteger(n) && n >= min && n <= max ? n : def;
+  }
+  function cleanList(v, max) {
+    return Array.isArray(v) ? v.map((x) => cleanStr(x, max)).filter(Boolean) : null;
+  }
+
+  function cleanPart(r) {
+    if (!r || typeof r !== 'object') return null;
+    const id = cleanId(r.id);
+    if (!id) return null;
+    const from = cleanInt(r.yearFrom, 1990, 2035, null);
+    const to = cleanInt(r.yearTo, 1990, 2035, null);
+    const limits = Array.isArray(r.limits) ? r.limits.map(Number).filter((x) => Number.isFinite(x) && x > 0 && x <= 150).sort((a, b) => a - b) : [];
+    const diff = Number(r.maxDiffKg);
+    return {
+      id, name: cleanStr(r.name, 60) || 'Часть',
+      yearFrom: from, yearTo: to,
+      format: cleanStr(r.format, 60),
+      weightMode: r.weightMode === 'fixed' ? 'fixed' : 'float',
+      limits, maxDiffKg: Number.isFinite(diff) && diff > 0 && diff <= 50 ? diff : null,
+    };
+  }
+
+  function cleanParticipant(r) {
+    if (!r || typeof r !== 'object') return null;
+    const id = cleanId(r.id);
+    const lastName = cleanStr(r.lastName, 60);
+    const birthDate = cleanDate(r.birthDate);
+    const weight = cleanWeight(r.weight);
+    if (!id || !lastName || !birthDate || weight == null) return null;
+    return {
+      id, lastName, firstName: cleanStr(r.firstName, 60), birthDate, sex: cleanSex(r.sex), weight,
+      level: cleanStr(r.level), branch: cleanStr(r.branch), coach: cleanStr(r.coach),
+      withdrawn: r.withdrawn === true, test: r.test === true,
+      partId: cleanId(r.partId) || '', entryId: cleanId(r.entryId) || '',
+      addedAt: cleanStr(r.addedAt, 40),
+    };
+  }
+
+  // Строки заявки и справочника: как участник, но без веса (вес появится при взвешивании).
+  function cleanPerson(r) {
+    if (!r || typeof r !== 'object') return null;
+    const id = cleanId(r.id);
+    const lastName = cleanStr(r.lastName, 60);
+    const birthDate = cleanDate(r.birthDate);
+    if (!id || !lastName || !birthDate) return null;
+    return {
+      id, lastName, firstName: cleanStr(r.firstName, 60), birthDate, sex: cleanSex(r.sex),
+      level: cleanStr(r.level), branch: cleanStr(r.branch), coach: cleanStr(r.coach),
+      partId: cleanId(r.partId) || '', absent: r.absent === true, test: r.test === true,
+    };
+  }
+
+  function cleanRoster(r) {
+    const c = cleanPerson(r);
+    if (c) { delete c.absent; delete c.partId; }
+    return c;
+  }
+
+  function cleanGrid(g, participantIds, partIds, report) {
+    if (!g || typeof g !== 'object') return null;
+    const id = cleanId(g.id);
+    const partId = cleanId(g.partId);
+    if (!id || !partIds.has(partId)) return null;
+    const raw = Array.isArray(g.members) ? g.members : [];
+    const members = raw.map(cleanId).filter((m) => m && participantIds.has(m));
+    report.refs += raw.length - members.length;
+    if (!members.length) return null;
+    const printed = typeof g.printedAt === 'string' ? cleanStr(g.printedAt, 40) : '';
+    return {
+      id, partId, sex: cleanSex(g.sex), level: cleanStr(g.level), format: cleanStr(g.format, 60),
+      members: Array.from(new Set(members)),
+      mat: cleanInt(g.mat, 1, 10, null), matManual: g.matManual === true,
+      locked: g.locked === true, printedAt: printed || null, dirtyAfterPrint: g.dirtyAfterPrint === true,
+      labelOverride: cleanStr(g.labelOverride, 20),
+    };
+  }
+
+  // Общий разбор списка записей: битые и повторные (по id) записи отбрасываются и считаются.
+  function keepValid(list, clean, report) {
+    const seen = new Set();
+    const out = [];
+    for (const r of Array.isArray(list) ? list : []) {
+      const c = clean(r);
+      if (!c || seen.has(c.id)) { report.dropped += 1; continue; }
+      seen.add(c.id);
+      out.push(c);
+    }
+    return out;
+  }
+
+  function cleanSettings(s, report) {
+    const base = defaultState().settings;
+    if (!s || typeof s !== 'object') return base;
+    const parts = keepValid(s.parts, cleanPart, report);
+    const min = cleanInt(s.minSize, 2, 8, base.minSize);
+    const max = cleanInt(s.maxSize, 2, 8, base.maxSize);
+    return {
+      title: cleanStr(s.title, 200) || base.title,
+      date: cleanDate(s.date) || '',
+      minSize: min <= max ? min : base.minSize,
+      maxSize: min <= max ? max : base.maxSize,
+      mats: cleanInt(s.mats, 1, 10, base.mats),
+      levels: cleanList(s.levels, 60) || base.levels,
+      formats: cleanList(s.formats, 60) || base.formats,
+      branches: cleanList(s.branches, 60) || [],
+      coaches: cleanList(s.coaches, 60) || [],
+      parts: parts.length ? parts : base.parts,
+    };
+  }
+
+  // Старые файлы турнира приводим к текущему формату; каждая запись проверяется.
+  // Возвращает состояние и отчёт: сколько записей отброшено и сколько ссылок на участников убрано.
+  function migrateWithReport(data) {
     if (!data || typeof data !== 'object') throw new Error('Файл не похож на турнир');
     if (!Array.isArray(data.participants) || !data.settings) throw new Error('В файле нет списка участников или настроек');
     if ((data.schema || 0) > SCHEMA_VERSION) throw new Error('Файл создан более новой версией приложения');
-    const base = defaultState();
+    const report = { dropped: 0, refs: 0 };
+    const settings = cleanSettings(data.settings, report);
+    const partIds = new Set(settings.parts.map((p) => p.id));
+    const participants = keepValid(data.participants, cleanParticipant, report);
+    const participantIds = new Set(participants.map((p) => p.id));
+    const entries = keepValid(data.entries, cleanPerson, report);
+    const entryIds = new Set(entries.map((e) => e.id));
+    for (const p of participants) if (p.entryId && !entryIds.has(p.entryId)) p.entryId = '';
+    const grids = [];
+    const gridIds = new Set();
+    for (const g of Array.isArray(data.grids) ? data.grids : []) {
+      const c = cleanGrid(g, participantIds, partIds, report);
+      if (!c || gridIds.has(c.id)) { report.dropped += 1; continue; }
+      gridIds.add(c.id);
+      grids.push(c);
+    }
+    const builtParts = {};
+    if (data.builtParts && typeof data.builtParts === 'object') {
+      for (const k of Object.keys(data.builtParts)) if (partIds.has(k) && data.builtParts[k] === true) builtParts[k] = true;
+    }
     const state = {
       schema: SCHEMA_VERSION,
-      settings: Object.assign({}, base.settings, data.settings),
-      participants: data.participants,
-      grids: Array.isArray(data.grids) ? data.grids : [],
-      builtParts: data.builtParts || {},
-      roster: Array.isArray(data.roster) ? data.roster : [],
-      entries: Array.isArray(data.entries) ? data.entries : [],
+      settings,
+      participants,
+      grids,
+      builtParts,
+      roster: keepValid(data.roster, cleanRoster, report),
+      entries,
     };
     // Версия 1: три формата по умолчанию → два («На коленках», «В стойке»).
     if ((data.schema || 1) < 2 && JSON.stringify(state.settings.formats) === JSON.stringify(['На коленках без курток', 'На коленках', 'В стойке'])) {
       const used = state.settings.parts.some((p) => p.format === 'На коленках без курток') || state.grids.some((g) => g.format === 'На коленках без курток');
-      if (!used) state.settings.formats = base.settings.formats.slice();
+      if (!used) state.settings.formats = defaultState().settings.formats.slice();
     }
-    return state;
+    return { state, report };
+  }
+
+  function migrate(data) {
+    return migrateWithReport(data).state;
   }
 
   function clone(state) {
@@ -714,7 +876,7 @@
   }
 
   const GL = {
-    SCHEMA_VERSION, uid, defaultState, migrate, clone,
+    SCHEMA_VERSION, uid, defaultState, migrate, migrateWithReport, clone,
     birthYear, formatRuDate, formatBirth, toRoman, fullName, partYearsLabel,
     partOf, getPart, activeOfPart, fixedLimit, sortedLimits, groupKey,
     partitionByWeight, buildPart, gridsOfPart, gridLabels, gridWeights, participantsMap,
