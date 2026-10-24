@@ -105,13 +105,27 @@ export type ImportMode = 'merge' | 'replace';
 /**
  * Записывает проверенную резервную копию одной транзакцией: при любой ошибке
  * база остаётся в прежнем состоянии.
- * merge — добавить и обновить записи с теми же id; replace — сначала очистить все таблицы.
+ * merge — добавить и обновить записи с теми же id. При этом:
+ *  - чек-ин из копии заменяет локальный чек-ин той же даты (дата уникальна в базе);
+ *  - текущие настройки сохраняются, из копии добавляются только отсутствующие ключи
+ *    (иначе слияние молча откатывало бы профиль и конфигурацию к версии из копии).
+ * replace — сначала очистить все таблицы и записать копию целиком.
  */
 export async function importBackup(backup: Backup, mode: ImportMode): Promise<void> {
   await db.transaction('rw', TABLE_NAMES, async () => {
     for (const t of TABLE_NAMES) {
       const tbl = db.table(t);
-      if (mode === 'replace') await tbl.clear();
+      if (mode === 'replace') {
+        await tbl.clear();
+      } else if (t === 'checkins') {
+        const dates = (backup.data.checkins as { date: string }[]).map((c) => c.date);
+        if (dates.length) await tbl.where('date').anyOf(dates).delete();
+      } else if (t === 'settings') {
+        const existing = new Set((await tbl.toCollection().primaryKeys()) as string[]);
+        const missing = (backup.data.settings as { key: string }[]).filter((s) => !existing.has(s.key));
+        if (missing.length) await tbl.bulkPut(missing as unknown[]);
+        continue;
+      }
       await tbl.bulkPut(backup.data[t] as unknown[]);
     }
   });

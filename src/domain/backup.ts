@@ -126,6 +126,8 @@ export function parseBackup(text: string): ParseBackupResult {
     }
     const schema = ENTITY_SCHEMAS[table];
     const seen = new Set<string>();
+    // У чек-инов уникальна не только запись (id), но и дата (индекс &date в базе).
+    const seenDates = table === 'checkins' ? new Set<string>() : undefined;
     const parsed: unknown[] = [];
     rows.forEach((row, i) => {
       const r = schema.safeParse(row);
@@ -138,6 +140,11 @@ export function parseBackup(text: string): ParseBackupResult {
       const key = table === 'settings' ? (r.data as { key: string }).key : (r.data as { id: string }).id;
       if (seen.has(key)) errors.push(`${TABLE_LABELS[table]}, запись ${i + 1}: повторяющийся идентификатор`);
       seen.add(key);
+      if (seenDates) {
+        const date = (r.data as { date: string }).date;
+        if (seenDates.has(date)) errors.push(`${TABLE_LABELS[table]}, запись ${i + 1}: на дату ${date} уже есть чек-ин в этом файле`);
+        seenDates.add(date);
+      }
       parsed.push(r.data);
     });
     result[table] = parsed;

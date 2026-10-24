@@ -122,6 +122,14 @@ describe('parseBackup', () => {
     if (!r.ok) expect(r.errors.join()).toMatch(/повторяющийся идентификатор/);
   });
 
+  it('отклоняет два чек-ина на одну дату (дата уникальна в базе)', () => {
+    const data = fullData();
+    data.checkins.push({ ...data.checkins[0]!, id: 'ci2', sleepHours: 6 });
+    const r = parseBackup(JSON.stringify(createBackup(data, '0.1.0')));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.join()).toMatch(/уже есть чек-ин в этом файле/);
+  });
+
   it('отклоняет неизвестные разделы и раздел не-списком', () => {
     const r = parseBackup(
       JSON.stringify({ format: BACKUP_FORMAT, schemaVersion: 1, exportedAt: meta.createdAt, data: { foods: {}, hack: [] } }),

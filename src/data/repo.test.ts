@@ -1,7 +1,7 @@
 // CRUD всех разделов и резервная копия на настоящем движке IndexedDB (fake-indexeddb в Node).
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { DATA_SCHEMA_VERSION, parseBackup } from '../domain/backup.ts';
+import { createBackup, DATA_SCHEMA_VERSION, parseBackup } from '../domain/backup.ts';
 import { TABLE_NAMES } from '../domain/schemas.ts';
 import { drafts } from '../test/fixtures.ts';
 import Dexie from 'dexie';
@@ -123,6 +123,41 @@ describe('резервная копия', () => {
 
     await importBackup(backup, 'merge');
     expect(await db.foods.count()).toBe(2);
+  });
+
+  it('объединение заменяет чек-ин той же даты записью из копии, а не падает', async () => {
+    const local = await saveEntity('checkins', drafts.checkins);
+    if (!local.ok) throw new Error('checkin');
+    const meta = { createdAt: '2026-10-21T00:00:00.000Z', updatedAt: '2026-10-21T00:00:00.000Z' };
+    const data = Object.fromEntries(TABLE_NAMES.map((t) => [t, []])) as unknown as Parameters<typeof createBackup>[0];
+    data.checkins = [{ ...drafts.checkins, id: 'из-копии', sleepHours: 5, ...meta }];
+    const parsed = parseBackup(JSON.stringify(createBackup(data, '0.10.0')));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    await importBackup(parsed.backup, 'merge');
+    expect(await db.checkins.count()).toBe(1);
+    const stored = await db.checkins.toArray();
+    expect(stored[0]!.id).toBe('из-копии');
+    expect(stored[0]!.sleepHours).toBe(5);
+  });
+
+  it('объединение не перезаписывает текущие настройки, но добавляет отсутствующие', async () => {
+    await setSetting('profile', { name: 'текущий' });
+    const meta = { createdAt: '2026-10-21T00:00:00.000Z', updatedAt: '2026-10-21T00:00:00.000Z' };
+    const data = Object.fromEntries(TABLE_NAMES.map((t) => [t, []])) as unknown as Parameters<typeof createBackup>[0];
+    data.checkins = [{ ...drafts.checkins, id: 'ci', ...meta }];
+    data.settings = [
+      { key: 'profile', value: { name: 'из-копии' } },
+      { key: 'supplementLog', value: { '2026-10-21': ['x@09:00'] } },
+    ];
+    const parsed = parseBackup(JSON.stringify(createBackup(data, '0.10.0')));
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+
+    await importBackup(parsed.backup, 'merge');
+    expect(await getSetting<{ name: string }>('profile')).toEqual({ name: 'текущий' });
+    expect(await getSetting<Record<string, string[]>>('supplementLog')).toEqual({ '2026-10-21': ['x@09:00'] });
   });
 
   it('обновление базы 2 → 3 переносит шаблоны в программы', async () => {

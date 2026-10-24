@@ -2,13 +2,34 @@
 // разбудить себя в закрытом состоянии без сервера, поэтому основное напоминание — событие в «Календаре»;
 // это — дополнение. Срабатывает только при разрешении уведомлений и для ещё не отмеченных приёмов.
 import { useLiveQuery } from 'dexie-react-hooks';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { db } from '../../data/db.ts';
 import { dosesForDay, normalizeLog, SUPPLEMENT_LOG_KEY } from '../../domain/supplements.ts';
 import { getZonedParts, todayKey } from '../../domain/time.ts';
 
+const REMINDED_KEYS = new Set<string>();
+
+function showReminder(name: string, body: string, tag: string): void {
+  const title = `Пора: ${name}`;
+  const icon = `${import.meta.env.BASE_URL}icons/icon-192.png`;
+  if ('serviceWorker' in navigator) {
+    void navigator.serviceWorker.ready
+      .then((r) => r.showNotification(title, { body, tag, icon }))
+      .catch(() => new Notification(title, { body, tag }));
+  } else {
+    new Notification(title, { body, tag });
+  }
+}
+
 export function useSupplementReminders() {
   const data = useLiveQuery(async () => ({ items: await db.supplements.toArray(), log: normalizeLog((await db.settings.get(SUPPLEMENT_LOG_KEY))?.value) }), []);
+  // Пересчёт каждую минуту: таймеры ставятся на всё оставшееся время суток, а не только на 12 часов,
+  // и приложение возвращает напоминание, если время настало до открытия (окно 1 минута).
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
   useEffect(() => {
     if (!data || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
     const day = todayKey();
@@ -20,14 +41,13 @@ export function useSupplementReminders() {
       .map((d) => {
         const [h, m] = d.time.split(':').map(Number);
         const wait = ((h! * 60 + m!) - nowMin) * 60_000 - now.second * 1000;
-        if (wait < 0 || wait > 12 * 3_600_000) return undefined;
+        if (wait < -60_000) return undefined;
         return window.setTimeout(() => {
-          const body = `${d.supplement.dose.toLocaleString('ru-RU')} ${d.supplement.doseUnit} — отметьте в «Добавках»`;
-          void navigator.serviceWorker?.ready
-            .then((r) => r.showNotification(`Пора: ${d.supplement.name}`, { body, tag: d.key, icon: `${import.meta.env.BASE_URL}icons/icon-192.png` }))
-            .catch(() => new Notification(`Пора: ${d.supplement.name}`, { body, tag: d.key }));
-        }, wait);
+          if (REMINDED_KEYS.has(d.key)) return;
+          REMINDED_KEYS.add(d.key);
+          showReminder(d.supplement.name, `${d.supplement.dose.toLocaleString('ru-RU')} ${d.supplement.doseUnit} — отметьте в «Добавках»`, d.key);
+        }, Math.max(0, wait));
       });
     return () => timers.forEach((t) => t !== undefined && clearTimeout(t));
-  }, [data]);
+  }, [data, tick]);
 }

@@ -54,14 +54,19 @@ const foodToPortion = (f: Food): PortionFood => optionToPortion(foodOption(f));
 function dishToRecipe(o: FoodOption): RecipePrefill | undefined {
   const recipe = o.reference?.recipe;
   if (!recipe) return undefined;
-  const ingredients: RecipeIngredient[] = recipe.ingredients.map((i) => {
+  const ingredients: RecipeIngredient[] = [];
+  for (const i of recipe.ingredients) {
     if (i.id === 'water') {
       const zero = Object.fromEntries(['sugars', 'fiber', 'satFat', 'monoFat', 'polyFat', 'cholesterol', 'sodium'].map((k) => [k, 0])) as Extra;
-      return { foodId: 'water', name: 'Вода', basis: 'ml', amount: i.grams, per100: { kcal: 0, protein: 0, fat: 0, carbs: 0 }, extra: { ...zero, water: 100 } };
+      ingredients.push({ foodId: 'water', name: 'Вода', basis: 'ml', amount: i.grams, per100: { kcal: 0, protein: 0, fat: 0, carbs: 0 }, extra: { ...zero, water: 100 } });
+      continue;
     }
-    const ref = REFERENCE_FOODS.find((r) => r.id === i.id)!;
-    return { foodId: ref.id, name: ref.name, basis: 'g', amount: i.grams, per100: ref.per100, extra: ref.extra };
-  });
+    const ref = REFERENCE_FOODS.find((r) => r.id === i.id);
+    // Целостность базы (каждый ингредиент блюда есть в ней) проверяется тестом referenceFoods.test.ts;
+    // если справочник пересобрали с ошибкой — пропускаем ингредиент, а не роняем экран.
+    if (!ref) continue;
+    ingredients.push({ foodId: ref.id, name: ref.name, basis: 'g', amount: i.grams, per100: ref.per100, extra: ref.extra });
+  }
   return { name: `${o.name} (мой вариант)`, ingredients, totalWeightG: recipe.totalWeightG };
 }
 
